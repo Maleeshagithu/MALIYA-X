@@ -32,7 +32,7 @@ async function startMaliya() {
   // ඔබගේ දුරකථන අංකයෙන් Pairing Code එක ලබාගැනීමට අවශ්‍ය නම් මෙහි ඔබේ අංකය දෙන්න (රටේ කේතය සමඟ, උදා: 9477xxxxxxx)
   // නැතහොත් ස්වයංක්‍රීයව කෝඩ් එක ඉල්ලීමට පල්ලිය පහත කෝඩ් එක පාවිච්චි කළ හැක:
   if (!sock.authState.creds.registered) {
-    const phoneNumber = "9477XXXXXXXX"; // මෙහි ඔබේ WhatsApp අංකය ලියන්න (අත්‍යවශ්‍ය නම් පමණි, නැතහොත් ලොග්ස් වලින් බලාගත හැක)
+    const phoneNumber = "94770678992"; // මෙහි ඔබේ WhatsApp අංකය ලියන්න (අත්‍යවශ්‍ය නම් පමණි, නැතහොත් ලොග්ස් වලින් බලාගත හැක)
     // සටහන: අංකය දීමට අවශ්‍ය නැත, ලොග්ස් හරහා හෝ ස්වයංක්‍රීයව කෝඩ් එක ජෙනරේට් වීමට සැලැස්විය හැක.
   }
 
@@ -63,7 +63,7 @@ async function startMaliya() {
   // Pairing Code එක ලබාගැනීම සඳහා විශේෂ ක්‍රමයක්
   setTimeout(async () => {
     if (!sock.authState.creds.registered) {
-      const phoneNumber = "9477XXXXXXXX"; // මෙහි ඔබේ WhatsApp අංකය දමන්න (උදා: 94712345678)
+      const phoneNumber = "94770678992"; // මෙහි ඔබේ WhatsApp අංකය දමන්න (උදා: 94712345678)
       if (phoneNumber && phoneNumber.length > 5) {
         try {
           let code = await sock.requestPairingCode(phoneNumber);
