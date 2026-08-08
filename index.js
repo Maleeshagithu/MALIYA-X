@@ -53,11 +53,11 @@ async function startMaliya() {
     }
   });
 
-  // Pairing Code එක ලබාගැනීම (නිවැරදි ක්‍රමය)
+  // Pairing Code එක ලබාගැනීම
   if (!sock.authState.creds.registered) {
     setTimeout(async () => {
       try {
-        const phoneNumber = "94770678992"; // ඔබේ WhatsApp අංකය මෙහි පමණක් ඇත
+        const phoneNumber = "94770678992";
         let code = await sock.requestPairingCode(phoneNumber);
         console.log(`\n========================================`);
         console.log(`🔑 YOUR PAIRING CODE IS: ${code}`);
@@ -71,7 +71,9 @@ async function startMaliya() {
   sock.ev.on("messages.upsert", async ({ messages }) => {
     const msg = messages[0];
 
-    if (!msg?.message || msg.key.fromMe) return;
+    // මෙහි තිබූ 'msg.key.fromMe' පරීක්ෂාව ඉවත් කර ඇත, 
+    // දැන් ඔබට ඔබේම අංකයෙන්ද (Message yourself) බොට් පරීක්ෂා කරගත හැක.
+    if (!msg?.message) return;
 
     const text =
       msg.message.conversation ||
