@@ -19,22 +19,15 @@ app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
 
-// WhatsApp Bot කොටස (Pairing Code සමඟ)
+// WhatsApp Bot කොටස
 async function startMaliya() {
   const { state, saveCreds } = await useMultiFileAuthState("./auth_info");
 
   const sock = makeWASocket({
     auth: state,
     logger: pino({ level: "silent" }),
-    browser: Browsers.macOS("Chrome") // Desktop බ්‍රව්සර් එකක් ලෙස සටහන් වේ
+    browser: Browsers.macOS("Chrome")
   });
-
-  // ඔබගේ දුරකථන අංකයෙන් Pairing Code එක ලබාගැනීමට අවශ්‍ය නම් මෙහි ඔබේ අංකය දෙන්න (රටේ කේතය සමඟ, උදා: 9477xxxxxxx)
-  // නැතහොත් ස්වයංක්‍රීයව කෝඩ් එක ඉල්ලීමට පල්ලිය පහත කෝඩ් එක පාවිච්චි කළ හැක:
-  if (!sock.authState.creds.registered) {
-    const phoneNumber = "94770678992"; // මෙහි ඔබේ WhatsApp අංකය ලියන්න (අත්‍යවශ්‍ය නම් පමණි, නැතහොත් ලොග්ස් වලින් බලාගත හැක)
-    // සටහන: අංකය දීමට අවශ්‍ය නැත, ලොග්ස් හරහා හෝ ස්වයංක්‍රීයව කෝඩ් එක ජෙනරේට් වීමට සැලැස්විය හැක.
-  }
 
   sock.ev.on("creds.update", saveCreds);
 
@@ -60,22 +53,20 @@ async function startMaliya() {
     }
   });
 
-  // Pairing Code එක ලබාගැනීම සඳහා විශේෂ ක්‍රමයක්
-  setTimeout(async () => {
-    if (!sock.authState.creds.registered) {
-      const phoneNumber = "94770678992"; // මෙහි ඔබේ WhatsApp අංකය දමන්න (උදා: 94712345678)
-      if (phoneNumber && phoneNumber.length > 5) {
-        try {
-          let code = await sock.requestPairingCode(phoneNumber);
-          console.log(`\n========================================`);
-          console.log(`🔑 YOUR PAIRING CODE IS: ${code}`);
-          console.log(`========================================\n`);
-        } catch (err) {
-          console.log("Error getting pairing code:", err);
-        }
+  // Pairing Code එක ලබාගැනීම (නිවැරදි ක්‍රමය)
+  if (!sock.authState.creds.registered) {
+    setTimeout(async () => {
+      try {
+        const phoneNumber = "94770678992"; // ඔබේ WhatsApp අංකය මෙහි පමණක් ඇත
+        let code = await sock.requestPairingCode(phoneNumber);
+        console.log(`\n========================================`);
+        console.log(`🔑 YOUR PAIRING CODE IS: ${code}`);
+        console.log(`========================================\n`);
+      } catch (err) {
+        console.log("Error getting pairing code:", err);
       }
-    }
-  }, 3000);
+    }, 4000);
+  }
 
   sock.ev.on("messages.upsert", async ({ messages }) => {
     const msg = messages[0];
