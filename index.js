@@ -3,9 +3,22 @@ const {
   useMultiFileAuthState,
   DisconnectReason
 } = require("@whiskeysockets/baileys");
-
 const pino = require("pino");
+const express = require("express");
 
+// Render සඳහා අවශ්‍ය වෙබ් සර්වර් කොටස (Port Timeouts වළක්වා ගැනීමට)
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.get("/", (req, res) => {
+  res.send("MALIYA-X Bot is running successfully!");
+});
+
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
+
+// WhatsApp Bot කොටස
 async function startMaliya() {
   const { state, saveCreds } = await useMultiFileAuthState("./auth_info");
 
@@ -20,8 +33,8 @@ async function startMaliya() {
   sock.ev.on("connection.update", ({ connection, lastDisconnect }) => {
     if (connection === "open") {
       console.log("╔══════════════════════════════╗");
-      console.log("║       👑 MALIYA-X 🇱🇰        ║");
-      console.log("║     WhatsApp Bot Online      ║");
+      console.log("║        👑 MALIYA-X 🇱🇰        ║");
+      console.log("║      WhatsApp Bot Online     ║");
       console.log("╚══════════════════════════════╝");
     }
 
@@ -79,7 +92,7 @@ async function startMaliya() {
     }
 
     if (text.toLowerCase() === ".life") {
-      const messages = [
+      const messagesList = [
         "🌱 අද කරන කුඩා උත්සාහය හෙට ලොකු ජයග්‍රහණයක් වෙන්න පුළුවන්.",
         "🌈 අමාරු කාලය සදාකාලික නෑ. හොඳ දවස් නැවත එනවා.",
         "💎 ඔබේ වටිනාකම අන් අයගේ අදහස් වලින් තීරණය වෙන්නේ නෑ.",
@@ -90,7 +103,7 @@ async function startMaliya() {
       ];
 
       const random =
-        messages[Math.floor(Math.random() * messages.length)];
+        messagesList[Math.floor(Math.random() * messagesList.length)];
 
       await sock.sendMessage(msg.key.remoteJid, {
         text: `🌿 *MALIYA-X | අද ජීවිත පාඩම*\n\n${random}\n\n👑 MALIYA-X 🇱🇰`
