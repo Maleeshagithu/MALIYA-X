@@ -2,10 +2,13 @@ const {
   default: makeWASocket,
   useMultiFileAuthState,
   DisconnectReason,
-  Browsers
+  Browsers,
+  downloadContentFromMessage
 } = require("@whiskeysockets/baileys");
 const pino = require("pino");
 const express = require("express");
+const axios = require("axios");
+const yts = require("yt-search");
 
 // Render සඳහා අවශ්‍ය වෙබ් සර්වර් කොටස
 const app = express();
@@ -125,6 +128,8 @@ async function startMaliya() {
     const text =
       msg.message.conversation ||
       msg.message.extendedTextMessage?.text ||
+      msg.message.imageMessage?.caption ||
+      msg.message.videoMessage?.caption ||
       "";
 
     const cmd = text.toLowerCase().split(" ")[0];
@@ -142,7 +147,7 @@ async function startMaliya() {
       });
     }
 
-    // 2. .menu (නව කමාන්ඩ් සමඟ යාවත්කාලීන කළ මෙනුව)
+    // 2. .menu (නව Song සහ Social කමාන්ඩ් සමඟ යාවත්කාලීන කළ මෙනුව)
     if (cmd === ".menu") {
       const menuLogoUrl = "https://raw.githubusercontent.com/Maleeshagithu/MALIYA-X/main/image_10.png";
 
@@ -155,6 +160,13 @@ async function startMaliya() {
 
 📅 *දිනය:* ${dateStr}
 ⏱️ *වේලාව:* ${timeStr}
+
+📥 *[ DOWNLOADS & MEDIA ]*
+  🔹 \`.song <සින්දුවේ නම>\` - සින්දු (Audio) ඩවුන්ලෝඩ් කිරීමට
+  🔹 \`.ytdl <නම/ලින්ක්>\` - යූටියුබ් වීඩියෝ බාගත කිරීමට
+  🔹 \`.social <ලින්ක්>\` - TikTok, FB, Insta වීඩියෝ බාගත කිරීමට
+  🔹 \`.sticker\` - පින්තූරයක් ස්ටිකරයක් කිරීමට
+  🔹 \`.ai <ප්‍රශ්නය>\` - AI සමඟ කතා කිරීමට
 
 📌 *[ GROUPS COMMANDS ]*
   🔹 \`.groupinfo\` - ගෘප් විස්තර බැලීමට
@@ -184,6 +196,142 @@ async function startMaliya() {
 ┃ 🚀 *Powered by MALIYA-X* 🇱🇰
 ┗━━━━━━━━━━━━━━━━━━━━━━┛`
       });
+    }
+
+    // --- නව අංග: 1. SONG DOWNLOADER (.song) ---
+    if (cmd === ".song" || cmd === ".audio") {
+      if (!args) {
+        await sock.sendMessage(remoteJid, { text: "❌ කරුණාකර බාගත කිරීමට අවශ්‍ය සින්දුවේ නම ලබා දෙන්න!\nඋදාහරණ: `.song Manike Mage Hithe`" });
+        return;
+      }
+      try {
+        await sock.sendMessage(remoteJid, { text: "🔍 සින්දුව සොයමින් පවතී... කරුණාකර මොහොතක් රැඳී සිටින්න." });
+        const search = await yts(args);
+        const video = search.videos[0];
+
+        if (!video) {
+          await sock.sendMessage(remoteJid, { text: "❌ අදාළ සින්දුව හමු නොවීය." });
+          return;
+        }
+
+        await sock.sendMessage(remoteJid, { text: `🎵 *සින්දුව හමු විය:* ${video.title}\n⏱️ කාලය: ${video.timestamp}\n\n⏳ ඔדיו ගොනුව සූදානම් වෙමින් පවතී...` });
+
+        const dlApi = `https://apis.davidcyriltech.my.id/download/ytmp3?url=${video.url}`;
+        const res = await axios.get(dlApi);
+        
+        if (res.data && res.data.result && res.data.result.download_url) {
+          await sock.sendMessage(remoteJid, {
+            audio: { url: res.data.result.download_url },
+            mimetype: 'audio/mp4',
+            ptt: false
+          });
+        } else {
+          await sock.sendMessage(remoteJid, { text: "❌ ඔדיו ගොනුව බාගත කර ගැනීමට නොහැකි විය." });
+        }
+      } catch (err) {
+        console.log(err);
+        await sock.sendMessage(remoteJid, { text: "❌ සින්දුව ඩවුන්ලෝඩ් කිරීමේදී දෝෂයක් ඇති විය." });
+      }
+    }
+
+    // --- නව අංග: 2. ALL SOCIAL MEDIA DOWNLOADER (.social) ---
+    if (cmd === ".social" || cmd === ".dl") {
+      if (!args) {
+        await sock.sendMessage(remoteJid, { text: "❌ කරුණාකර TikTok, Instagram හෝ Facebook ලින්ක් එකක් ලබා දෙන්න!\nඋදාහරණ: `.social [Link]`" });
+        return;
+      }
+      try {
+        await sock.sendMessage(remoteJid, { text: "📥 සමාජ මාධ්‍ය වීඩියෝව බාගත කරමින් පවතී... මොහොතක් රැඳී සිටින්න." });
+        
+        const socialApi = `https://apis.davidcyriltech.my.id/download/all?url=${encodeURIComponent(args)}`;
+        const res = await axios.get(socialApi);
+
+        if (res.data && res.data.success && res.data.result) {
+          const downloadUrl = res.data.result.url || res.data.result.download_url || res.data.result.video;
+          await sock.sendMessage(remoteJid, {
+            video: { url: downloadUrl },
+            caption: `🎥 *Social Media Download*\n\n👑 Powered by MALIYA-X 🇱🇰`
+          });
+        } else {
+          await sock.sendMessage(remoteJid, { text: "❌ ලබා දී ඇති ලින්ක් එකෙන් වීඩියෝව බාගත කරගත නොහැකි විය. කරුණාකර නිවැරදි ලින්ක් එකක් දෙන්න." });
+        }
+      } catch (err) {
+        console.log(err);
+        await sock.sendMessage(remoteJid, { text: "❌ සමාජ මාධ්‍ය ඩවුන්ලෝඩ් කිරීමේදී දෝෂයක් ඇති විය." });
+      }
+    }
+
+    // --- නව අංග: 3. STICKER MAKER (.sticker) ---
+    if (cmd === ".sticker" || cmd === ".s") {
+      try {
+        const isImage = msg.message.imageMessage;
+        const isQuotedImage = msg.message.extendedTextMessage?.contextInfo?.quotedMessage?.imageMessage;
+
+        if (isImage || isQuotedImage) {
+          const targetMessage = isImage ? msg : { message: msg.message.extendedTextMessage.contextInfo.quotedMessage };
+          const stream = await downloadContentFromMessage(targetMessage.message.imageMessage, 'image');
+          let buffer = Buffer.from([]);
+          for await (const chunk of stream) {
+            buffer = Buffer.concat([buffer, chunk]);
+          }
+          await sock.sendMessage(remoteJid, { sticker: buffer }, { quoted: msg });
+        } else {
+          await sock.sendMessage(remoteJid, { text: "❌ කරුණාකර පින්තූරයක් සමඟ හෝ පින්තූරයකට රිප්ලයි කරමින් `.sticker` කමාන්ඩ් එක භාවිතා කරන්න!" });
+        }
+      } catch (err) {
+        console.log(err);
+        await sock.sendMessage(remoteJid, { text: "❌ ස්ටිකර් එක සෑදීමේදී දෝෂයක් ඇති විය." });
+      }
+    }
+
+    // --- නව අංග: 4. AI CHAT (.ai) ---
+    if (cmd === ".ai") {
+      if (!args) {
+        await sock.sendMessage(remoteJid, { text: "❌ කරුණාකර AI වෙත ඇසීමට ප්‍රශ්නයක් ලබා දෙන්න!\nඋදාහරණ: `.ai කොළඹ ගැන විස්තරයක් දෙන්න`" });
+        return;
+      }
+      try {
+        await sock.sendMessage(remoteJid, { text: "⏳ AI පිළිතුරක් සූදානම් කරමින් පවතී..." });
+        const response = await axios.get(`https://apis.davidcyriltech.my.id/ai/gemini?query=${encodeURIComponent(args)}`);
+        const replyText = response.data.result || response.data.message || "සමාවන්න, මට පිළිතුර ලබා දීමට නොහැකි විය.";
+        
+        await sock.sendMessage(remoteJid, { text: `🤖 *MALIYA-X AI*\n\n${replyText}\n\n👑 MALIYA-X 🇱🇰` });
+      } catch (err) {
+        await sock.sendMessage(remoteJid, { text: "❌ AI සේවාව සමඟ සම්බන්ධ වීමේදී දෝෂයක් ඇති විය." });
+      }
+    }
+
+    // --- නව අංග: 5. YOUTUBE VIDEO DOWNLOADER (.ytdl) ---
+    if (cmd === ".ytdl" || cmd === ".video") {
+      if (!args) {
+        await sock.sendMessage(remoteJid, { text: "❌ කරුණාකර යූටියුබ් නමක් හෝ ලින්ක් එකක් ලබා දෙන්න!\nඋදාහරණ: `.ytdl Manike Mage Hithe`" });
+        return;
+      }
+      try {
+        await sock.sendMessage(remoteJid, { text: "📥 යූටියුබ් වීඩියෝව සොයමින් පවතී... මොහොතක් රැඳී සිටින්න." });
+        const search = await yts(args);
+        const video = search.videos[0];
+
+        if (!video) {
+          await sock.sendMessage(remoteJid, { text: "❌ අදාළ වීඩියෝව හමු නොවීය." });
+          return;
+        }
+
+        const dlApi = `https://apis.davidcyriltech.my.id/download/ytmp4?url=${video.url}`;
+        const res = await axios.get(dlApi);
+        
+        if (res.data && res.data.result && res.data.result.download_url) {
+          await sock.sendMessage(remoteJid, {
+            video: { url: res.data.result.download_url },
+            caption: `🎥 *${video.title}*\n\n👑 Powered by MALIYA-X 🇱🇰`
+          });
+        } else {
+          await sock.sendMessage(remoteJid, { text: "❌ වීඩියෝව බාගත කර ගැනීමට නොහැකි විය." });
+        }
+      } catch (err) {
+        console.log(err);
+        await sock.sendMessage(remoteJid, { text: "❌ ඩවුන්ලෝඩ් කිරීමේදී දෝෂයක් ඇති විය." });
+      }
     }
 
     // 3. .time
@@ -228,7 +376,7 @@ async function startMaliya() {
       });
     }
 
-    // 6. .admin (ඇඩ්මින්වරුන් ටැග් කිරීමට)
+    // 6. .admin
     if (cmd === ".admin") {
       if (!remoteJid.endsWith("@g.us")) {
         await sock.sendMessage(remoteJid, { text: "❌ මෙම කමාන්ඩ් එක ගෘප් එකක පමණක් ක්‍රියාත්මක වේ!" });
@@ -245,23 +393,22 @@ async function startMaliya() {
       await sock.sendMessage(remoteJid, { text: adminText, mentions: admins });
     }
 
-    // 7. .calc (ගණනය කිරීම් සඳහා - උදා: .calc 50+50)
+    // 7. .calc
     if (cmd === ".calc") {
       if (!args) {
         await sock.sendMessage(remoteJid, { text: "❌ කරුණාකර ගණිත ගැටළුවක් ලබා දෙන්න!\nඋදාහරණයක් ලෙස: `.calc 25 + 25`" });
         return;
       }
       try {
-        // ආරක්ෂිතව ගණිතමය සමීකරණ විසඳීම
         let sanitized = args.replace(/[^0-9+\-*/().]/g, '');
         let result = eval(sanitized);
-        await sock.sendMessage(remoteJid, { text: `🧮 *ගණනය කිරීමේ ප්‍රතිඵලය*\n\nپرسමණය: ${args}\nउत्तर / Result: *${result}*\n\n👑 MALIYA-X 🇱🇰` });
+        await sock.sendMessage(remoteJid, { text: `🧮 *ගණනය කිරීමේ ප්‍රතිඵලය*\n\nප්‍රශ්නය: ${args}\nResult: *${result}*\n\n👑 MALIYA-X 🇱🇰` });
       } catch (e) {
-        await sock.sendMessage(remoteJid, { text: "❌ අයෝග්‍ය ගණිතමය ප්‍රකාශනයකි! කරුණාකර නිවැරදිව ලබා දෙන්න." });
+        await sock.sendMessage(remoteJid, { text: "❌ අයෝග්‍ය ගණිතමය ප්‍රකාශනයකි!" });
       }
     }
 
-    // 8. .joke (විහිළු කතා)
+    // 8. .joke
     if (cmd === ".joke") {
       const jokesList = [
         "😂 ගුරුවරුන් ඇහුවාම 'ගෙදර වැඩ කළේ නැද්ද?' කියලා, ළමයා කිව්වා 'සර්, ඒක පෞද්ගලික ප්‍රශ්නයක්' කියලා!",
@@ -277,8 +424,7 @@ async function startMaliya() {
       const list = [
         "🌱 අද කරන කුඩා උත්සාහය හෙට දවසේ ලොකුම ජයග්‍රහණයේ පදනම වැටෙන්න පුළුවන්. උත්සාහය අත්හරින්න එපා!",
         "🌈 කොතරම් අමාරු කාලයක් ආවත් එය සදාකාලික නැත. අඳුරු වැහි කුණාටුවෙන් පසු හිරු එළිය නැවතත් පෑදෙයි.",
-        "💎 ඔබේ සැබෑ වටිනාකම තීරණය වන්නේ අන් අයගේ අදහස් මත නොව, ඔබේ ක්‍රියාවන් සහ ආත්ම විශ්වාසය මතය.",
-        "🔥 ජීවිතයේ වැටීම් ස්වභාවිකය; වැදගත් වන්නේ වැටුණු වාරයක් පාසා වඩාත් ශක්තිමත්ව නැගී සිටීමයි."
+        "💎 ඔබේ සැබෑ වටිනාකම තීරණය වන්නේ අන් අයගේ අදහස් මත නොව, ඔබේ ක්‍රියාවන් සහ ආත්ම විශ්වාසය මතය."
       ];
       const random = list[Math.floor(Math.random() * list.length)];
       await sock.sendMessage(remoteJid, { text: `🌿 *MALIYA-X | දවසේ ජීවිත පාඩම*\n\n${random}\n\n👑 MALIYA-X 🇱🇰` });
@@ -288,8 +434,7 @@ async function startMaliya() {
     if (cmd === ".motivate") {
       const list = [
         "🔥 සාර්ථකත්වයට කෙටිමං නැත; ඇත්තේ දැඩි කැපවීම, නොපසුබස්නා උත්සාහය සහ නොසැලෙන අරමුණකි.",
-        "⚡ ඔබ ඔබටම සම්පූර්ණයෙන්ම විශ්වාසය තබන තාක් කල්, ඔබට ජයග්‍රහණය කළ නොහැකි කිසිදු බාධකයක් නොමැත.",
-        "🚀 ජීවිතයේ ඔබට හමුවන අභියෝග යනු ඔබව දුර්වල කිරීමට නොව, ඔබේ සැබෑ හැකියාව ඔප්නංවා ගැනීමට ලැබෙන අවස්ථා වේ."
+        "⚡ ඔබ ඔබටම සම්පූර්ණයෙන්ම විශ්වාසය තබන තාක් කල්, ඔබට ජයග්‍රහණය කළ නොහැකි කිසිදු බාධකයක් නොමැත."
       ];
       const random = list[Math.floor(Math.random() * list.length)];
       await sock.sendMessage(remoteJid, { text: `💪 *MALIYA-X | සිතට එළියක් (අභිප්‍රේරණය)*\n\n${random}\n\n👑 MALIYA-X 🇱🇰` });
@@ -308,8 +453,8 @@ async function startMaliya() {
     // 12. .fact
     if (cmd === ".fact") {
       const list = [
-        "🧠 මිනිස් මොළය මඟින් නිපදවන විදුලි බලය (විදුලි බල්බයක් දැල්වීමට තරම් ප්‍රමාණවත් වේ) අපූරු ස්වභාවික නිර්මාණයකි.",
-        "🧠 පෘථිවියේ සාගර පතුලේ තවමත් මිනිසා සොයා නොගත් අපූරු රහස් සහ ජීවී විශේෂ අනන්තවත් ඇත."
+        "🧠 මිනිස් මොළය මඟින් නිපදවන විදුලි බලය විදුලි බල්බයක් දැල්වීමට තරම් ප්‍රමාණවත් වේ.",
+        "🧠 පෘථිවියේ සාගර පතුලේ තවමත් මිනිසා සොයා නොගත් අපූරු රහස් අනන්තවත් ඇත."
       ];
       const random = list[Math.floor(Math.random() * list.length)];
       await sock.sendMessage(remoteJid, { text: `🧠 *MALIYA-X | අපූරු විද්‍යාත්මක සත්‍යයක්*\n\n${random}\n\n👑 MALIYA-X 🇱🇰` });
@@ -327,22 +472,22 @@ async function startMaliya() {
 
     // 14. .morning
     if (cmd === ".morning") {
-      await sock.sendMessage(remoteJid, { text: "🌅 සුභ උදෑසනක් වේවා! අද උදෑසන උදාවූ අලුත් ඉර එළියත් සමඟ ඔබේ සියලු බලාපොරොත්තු ඉටු වන, සතුටින් හා සාර්ථකත්වයෙන් පිරි අපූරු දවසක් වේවා! ✨💖\n\n👑 MALIYA-X 🇱🇰" });
+      await sock.sendMessage(remoteJid, { text: "🌅 සුභ උදෑසනක් වේවා! අද උදෑසන උදාවූ අලුත් ඉර එළියත් සමඟ ඔබේ සියලු බලාපොරොත්තු ඉටු වන අපූරු දවසක් වේවා! ✨💖\n\n👑 MALIYA-X 🇱🇰" });
     }
 
     // 15. .night
     if (cmd === ".night") {
-      await sock.sendMessage(remoteJid, { text: "🌙 සුභ රාත්‍රියක් වේවා! දවස පුරා වෙහෙස මහන්සි වී වැඩ කළ ඔබට සුවදායී, සන්සුන් නින්දක් ලැබේවා! හෙට දවස ඔබට ජයග්‍රහණයේ මාවත විවර කරයි! 💤✨\n\n👑 MALIYA-X 🇱🇰" });
+      await sock.sendMessage(remoteJid, { text: "🌙 සුභ රාත්‍රියක් වේවා! දවස පුරා වෙහෙස මහන්සි වී වැඩ කළ ඔබට සුවදායී නින්දක් ලැබේවා! 💤✨\n\n👑 MALIYA-X 🇱🇰" });
     }
 
     // 16. .respect
     if (cmd === ".respect") {
-      await sock.sendMessage(remoteJid, { text: "❤️ අන් අයට ගරු කිරීම සහ ආදරය කිරීම යනු ඔබේ උතුම් පෞරුෂයේ සහ සංස්කෘතියේ සැබෑ පිළිබිඹුවකි! සෑම විටම එකිනෙකට ගරු කරමු. 🤝✨\n\n👑 MALIYA-X 🇱🇰" });
+      await sock.sendMessage(remoteJid, { text: "❤️ අන් අයට ගරු කිරීම සහ ආදරය කිරීම යනු ඔබේ උතුම් පෞරුෂයේ සැබෑ පිළිබිඹුවකි! 🤝✨\n\n👑 MALIYA-X 🇱🇰" });
     }
 
     // 17. .friend
     if (cmd === ".friend") {
-      await sock.sendMessage(remoteJid, { text: "🤝 සැබෑ මිතුරෙකු යනු දුකේදී මෙන්ම සැපේදී සෙවණැල්ලක් මෙන් ළඟින් සිටින ජීවිතයේ ලැබෙන ඉතාම වටිනාම සහ දුර්ලභ ත්‍යාගයකි! 🌟💖\n\n👑 MALIYA-X 🇱🇰" });
+      await sock.sendMessage(remoteJid, { text: "🤝 සැබෑ මිතුරෙකු යනු දුකේදී මෙන්ම සැපේදී සෙවණැල්ලක් මෙන් ළඟින් සිටින ජීවිතයේ ලැබෙන වටිනාම ත්‍යාගයකි! 🌟💖\n\n👑 MALIYA-X 🇱🇰" });
     }
   });
 }
