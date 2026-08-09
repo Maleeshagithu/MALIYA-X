@@ -38,7 +38,7 @@ async function startMaliya() {
     if (connection === "open") {
       console.log("╔══════════════════════════════╗");
       console.log("║        👑 MALIYA-X 🇱🇰        ║");
-      console.log("║      WhatsApp Bot Online      ║");
+      console.log("║      WhatsApp Bot Online     ║");
       console.log("╚══════════════════════════════╝");
     }
 
@@ -125,7 +125,6 @@ async function startMaliya() {
     const msg = messages[0];
     if (!msg?.message) return;
 
-    // තවදුරටත් තමන්ගේ මැසේජ් පමණක් නොව ඕනෑම කෙනෙකුගේ මැසේජ් සඳහා බොට් ක්‍රියාත්මක වේ
     const text =
       msg.message.conversation ||
       msg.message.extendedTextMessage?.text ||
@@ -149,9 +148,9 @@ async function startMaliya() {
       });
     }
 
-    // 2. .menu (ඔබ ඉල්ලූ ලස්සන ලෝගෝ පින්තූරය සමඟ)
+    // 2. .menu (ලස්සන MALIYA-X ලෝගෝ එක සමඟ)
     if (cmd === ".menu") {
-      const menuLogoUrl = "https://i.ibb.co/6Pqj45q/file-000000001bac8208a30c54ead6b411f7.png"; // ඔබ ලබාදුන් පින්තූරය සඳහා සකස් කළ ලින්ක් එක
+      const menuLogoUrl = "https://i.ibb.co/6Pqj45q/file-000000001bac8208a30c54ead6b411f7.png";
 
       await sock.sendMessage(remoteJid, {
         image: { url: menuLogoUrl },
