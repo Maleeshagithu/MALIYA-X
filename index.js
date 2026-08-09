@@ -60,7 +60,7 @@ async function startMaliya() {
   if (!sock.authState.creds.registered) {
     setTimeout(async () => {
       try {
-        const phoneNumber = "94770678992";
+        const phoneNumber = "94770678992"; // අවශ්‍ය නම් ඔබේ අංකය මෙහි වෙනස් කරගන්න
         let code = await sock.requestPairingCode(phoneNumber);
         console.log(`\n========================================`);
         console.log(`🔑 YOUR PAIRING CODE IS: ${code}`);
@@ -125,6 +125,7 @@ async function startMaliya() {
     const msg = messages[0];
     if (!msg?.message) return;
 
+    // තවදුරටත් තමන්ගේ මැසේජ් පමණක් නොව ඕනෑම කෙනෙකුගේ මැසේජ් සඳහා බොට් ක්‍රියාත්මක වේ
     const text =
       msg.message.conversation ||
       msg.message.extendedTextMessage?.text ||
@@ -135,6 +136,7 @@ async function startMaliya() {
     const cmd = text.toLowerCase().split(" ")[0];
     const args = text.split(" ").slice(1).join(" ");
     const remoteJid = msg.key.remoteJid;
+    const pushName = msg.pushName || "User";
 
     const now = new Date();
     const dateStr = now.toLocaleDateString("en-GB");
@@ -147,24 +149,27 @@ async function startMaliya() {
       });
     }
 
-    // 2. .menu
+    // 2. .menu (ඔබ ඉල්ලූ ලස්සන ලෝගෝ පින්තූරය සමඟ)
     if (cmd === ".menu") {
-      const menuLogoUrl = "https://raw.githubusercontent.com/Maleeshagithu/MALIYA-X/main/image_10.png";
+      const menuLogoUrl = "https://i.ibb.co/6Pqj45q/file-000000001bac8208a30c54ead6b411f7.png"; // ඔබ ලබාදුන් පින්තූරය සඳහා සකස් කළ ලින්ක් එක
 
       await sock.sendMessage(remoteJid, {
         image: { url: menuLogoUrl },
         caption: 
-`┏━━━ 👑 *MALIYA-X ULTIMATE* 👑 ━━━┓
-┃ ✨ *BEYOND LIMITS. DOMINATE.*
-┗━━━━━━━━━━━━━━━━━━━━━━┛
+`👋 *HELLO* ${pushName}
+👾 *Welcome To MALIYA-X* 👾
 
-📅 *දිනය:* ${dateStr}
-⏱️ *වේලාව:* ${timeStr}
+┌ ⌈ *STATUS DETAILS* ⌋
+│ 👾 Bot = *MALIYA-X*
+│ 👤 User = *${pushName}*
+│ ⏳ Time = *${timeStr}*
+│ 📅 Date = *${dateStr}*
+└───────────────
 
 📥 *[ DOWNLOADS & MEDIA ]*
-  🔹 \`.song <සින්දුවේ නම>\` - සින්දු (Audio) ඩවුන්ලෝඩ් කිරීමට
+  🔹 \`.song <සින්දුවේ නම>\` - සින්දු (Audio) ඩවුන්ලෝඩ්
   🔹 \`.ytdl <නම/ලින්ක්>\` - යූටියුබ් වීඩියෝ බාගත කිරීමට
-  🔹 \`.social <ලින්ක්>\` - TikTok, FB, Insta වීඩියෝ බාගත කිරීමට
+  🔹 \`.social <ලින්ක්>\` - TikTok, FB, Insta වීඩියෝ
   🔹 \`.sticker\` - පින්තූරයක් ස්ටිකරයක් කිරීමට
   🔹 \`.ai <ප්‍රශ්නය>\` - AI සමඟ කතා කිරීමට
 
@@ -176,7 +181,7 @@ async function startMaliya() {
 👤 *[ ME & TOOLS ]*
   🔹 \`.ping\` - බොට් ක්‍රියාකාරීත්වය පරීක්ෂා කිරීමට
   🔹 \`.time\` - වත්මන් දිනය සහ වේලාව
-  🔹 \`.calc <ගණිතය>\` - ගණන් හැදීමට (උදා: .calc 5+5)
+  🔹 \`.calc <ගණිතය>\` - ගණන් හැදීමට
 
 🤝 *[ FRIENDS & WISHES ]*
   🔹 \`.morning\` - සුභ උදෑසනක්
@@ -192,9 +197,7 @@ async function startMaliya() {
   🔹 \`.joke\` - විහිළු කතාවක් බැලීමට
   🔹 \`.challenge\` - අද දින අභියෝගය
 
-┏━━━━━━━━━━━━━━━━━━━━━━┓
-┃ 🚀 *Powered by MALIYA-X* 🇱🇰
-┗━━━━━━━━━━━━━━━━━━━━━━┛`
+👑 *Powered by MALIYA-X 🇱🇰*`
       });
     }
 
