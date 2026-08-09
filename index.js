@@ -1,14 +1,14 @@
-const {
-  default: makeWASocket,
-  useMultiFileAuthState,
-  DisconnectReason,
-  Browsers,
-  downloadContentFromMessage
+const { 
+  default: makeWASocket, 
+  useMultiFileAuthState, 
+  DisconnectReason, 
+  Browsers, 
+  downloadContentFromMessage 
 } = require("@whiskeysockets/baileys");
 const pino = require("pino");
 const express = require("express");
 const axios = require("axios");
-const yts = require("yt-search");
+const ytSearch = require("yt-search");
 
 // Render සඳහා අවශ්‍ය වෙබ් සර්වර් කොටස
 const app = express();
@@ -38,7 +38,7 @@ async function startMaliya() {
     if (connection === "open") {
       console.log("╔══════════════════════════════╗");
       console.log("║        👑 MALIYA-X 🇱🇰        ║");
-      console.log("║      WhatsApp Bot Online     ║");
+      console.log("║      WhatsApp Bot Online      ║");
       console.log("╚══════════════════════════════╝");
     }
 
@@ -147,7 +147,7 @@ async function startMaliya() {
       });
     }
 
-    // 2. .menu (නව Song සහ Social කමාන්ඩ් සමඟ යාවත්කාලීන කළ මෙනුව)
+    // 2. .menu
     if (cmd === ".menu") {
       const menuLogoUrl = "https://raw.githubusercontent.com/Maleeshagithu/MALIYA-X/main/image_10.png";
 
@@ -198,7 +198,7 @@ async function startMaliya() {
       });
     }
 
-    // --- නව අංග: 1. SONG DOWNLOADER (.song) ---
+    // --- 1. SONG DOWNLOADER (.song / .audio) ---
     if (cmd === ".song" || cmd === ".audio") {
       if (!args) {
         await sock.sendMessage(remoteJid, { text: "❌ කරුණාකර බාගත කිරීමට අවශ්‍ය සින්දුවේ නම ලබා දෙන්න!\nඋදාහරණ: `.song Manike Mage Hithe`" });
@@ -206,7 +206,7 @@ async function startMaliya() {
       }
       try {
         await sock.sendMessage(remoteJid, { text: "🔍 සින්දුව සොයමින් පවතී... කරුණාකර මොහොතක් රැඳී සිටින්න." });
-        const search = await yts(args);
+        const search = await ytSearch(args);
         const video = search.videos[0];
 
         if (!video) {
@@ -216,7 +216,7 @@ async function startMaliya() {
 
         await sock.sendMessage(remoteJid, { text: `🎵 *සින්දුව හමු විය:* ${video.title}\n⏱️ කාලය: ${video.timestamp}\n\n⏳ ඔדיו ගොනුව සූදානම් වෙමින් පවතී...` });
 
-        const dlApi = `https://apis.davidcyriltech.my.id/download/ytmp3?url=${video.url}`;
+        const dlApi = `https://apis.davidcyriltech.my.id/download/ytmp3?url=${encodeURIComponent(video.url)}`;
         const res = await axios.get(dlApi);
         
         if (res.data && res.data.result && res.data.result.download_url) {
@@ -234,7 +234,7 @@ async function startMaliya() {
       }
     }
 
-    // --- නව අංග: 2. ALL SOCIAL MEDIA DOWNLOADER (.social) ---
+    // --- 2. ALL SOCIAL MEDIA DOWNLOADER (.social / .dl) ---
     if (cmd === ".social" || cmd === ".dl") {
       if (!args) {
         await sock.sendMessage(remoteJid, { text: "❌ කරුණාකර TikTok, Instagram හෝ Facebook ලින්ක් එකක් ලබා දෙන්න!\nඋදාහරණ: `.social [Link]`" });
@@ -261,7 +261,7 @@ async function startMaliya() {
       }
     }
 
-    // --- නව අංග: 3. STICKER MAKER (.sticker) ---
+    // --- 3. STICKER MAKER (.sticker / .s) ---
     if (cmd === ".sticker" || cmd === ".s") {
       try {
         const isImage = msg.message.imageMessage;
@@ -284,7 +284,7 @@ async function startMaliya() {
       }
     }
 
-    // --- නව අංග: 4. AI CHAT (.ai) ---
+    // --- 4. AI CHAT (.ai) ---
     if (cmd === ".ai") {
       if (!args) {
         await sock.sendMessage(remoteJid, { text: "❌ කරුණාකර AI වෙත ඇසීමට ප්‍රශ්නයක් ලබා දෙන්න!\nඋදාහරණ: `.ai කොළඹ ගැන විස්තරයක් දෙන්න`" });
@@ -301,7 +301,7 @@ async function startMaliya() {
       }
     }
 
-    // --- නව අංග: 5. YOUTUBE VIDEO DOWNLOADER (.ytdl) ---
+    // --- 5. YOUTUBE VIDEO DOWNLOADER (.ytdl / .video) ---
     if (cmd === ".ytdl" || cmd === ".video") {
       if (!args) {
         await sock.sendMessage(remoteJid, { text: "❌ කරුණාකර යූටියුබ් නමක් හෝ ලින්ක් එකක් ලබා දෙන්න!\nඋදාහරණ: `.ytdl Manike Mage Hithe`" });
@@ -309,7 +309,7 @@ async function startMaliya() {
       }
       try {
         await sock.sendMessage(remoteJid, { text: "📥 යූටියුබ් වීඩියෝව සොයමින් පවතී... මොහොතක් රැඳී සිටින්න." });
-        const search = await yts(args);
+        const search = await ytSearch(args);
         const video = search.videos[0];
 
         if (!video) {
@@ -317,7 +317,7 @@ async function startMaliya() {
           return;
         }
 
-        const dlApi = `https://apis.davidcyriltech.my.id/download/ytmp4?url=${video.url}`;
+        const dlApi = `https://apis.davidcyriltech.my.id/download/ytmp4?url=${encodeURIComponent(video.url)}`;
         const res = await axios.get(dlApi);
         
         if (res.data && res.data.result && res.data.result.download_url) {
