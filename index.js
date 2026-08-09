@@ -56,11 +56,11 @@ async function startMaliya() {
     }
   });
 
-  // Pairing Code එක ලබාගැනීම
+  // Pairing Code එක ලබාගැනීම (Render Environment Variables වලින් අංකය ලබා ගනී)
   if (!sock.authState.creds.registered) {
     setTimeout(async () => {
       try {
-        const phoneNumber = "94770678992"; // අවශ්‍ය නම් ඔබේ අංකය මෙහි වෙනස් කරගන්න
+        const phoneNumber = process.env.PHONE_NUMBER || "94770678992"; 
         let code = await sock.requestPairingCode(phoneNumber);
         console.log(`\n========================================`);
         console.log(`🔑 YOUR PAIRING CODE IS: ${code}`);
@@ -148,7 +148,7 @@ async function startMaliya() {
       });
     }
 
-    // 2. .menu (ලස්සන MALIYA-X ලෝගෝ එක සමඟ)
+    // 2. .menu
     if (cmd === ".menu") {
       const menuLogoUrl = "https://i.ibb.co/6Pqj45q/file-000000001bac8208a30c54ead6b411f7.png";
 
