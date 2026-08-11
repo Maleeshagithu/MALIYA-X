@@ -52,22 +52,28 @@ function getTime() {
   };
 }
 
+// IMPORTANT FIX:
+// Baileys participant can sometimes be an object.
+// Always return a STRING JID.
 function getParticipantId(participant) {
+  if (!participant) return "";
+
   if (typeof participant === "string") {
     return participant;
   }
 
-  if (participant && typeof participant === "object") {
-    return (
+  if (typeof participant === "object") {
+    const id =
       participant.id ||
       participant.jid ||
       participant.phoneNumber ||
       participant.lid ||
-      ""
-    );
+      "";
+
+    return typeof id === "string" ? id : String(id || "");
   }
 
-  return "";
+  return String(participant);
 }
 
 function getMessageText(msg) {
@@ -101,60 +107,73 @@ async function startMaliya() {
 
   sock.ev.on("creds.update", saveCreds);
 
-  // ==================== CONNECTION ====================
+  // =====================================================
+  // CONNECTION
+  // =====================================================
 
   sock.ev.on(
     "connection.update",
     async ({ connection, lastDisconnect }) => {
-
-      if (connection === "open") {
-        console.log("");
-        console.log("╔══════════════════════════════╗");
-        console.log("║       👑 MALIYA-X 🇱🇰       ║");
-        console.log("║     WhatsApp Bot ONLINE      ║");
-        console.log("╚══════════════════════════════╝");
-        console.log("");
-      }
-
-      if (connection === "close") {
-
-        const statusCode =
-          lastDisconnect?.error?.output?.statusCode;
-
-        const shouldReconnect =
-          statusCode !== DisconnectReason.loggedOut;
-
-        if (shouldReconnect) {
-          console.log("🔄 MALIYA-X reconnecting...");
-
-          setTimeout(() => {
-            startMaliya();
-          }, 5000);
-
-        } else {
-          console.log("❌ WhatsApp logged out.");
-          console.log("🔑 Pair again.");
+      try {
+        if (connection === "connecting") {
+          console.log("🔄 MALIYA-X connecting...");
         }
+
+        if (connection === "open") {
+          console.log("");
+          console.log("╔══════════════════════════════╗");
+          console.log("║       👑 MALIYA-X 🇱🇰       ║");
+          console.log("║     WhatsApp Bot ONLINE      ║");
+          console.log("╚══════════════════════════════╝");
+          console.log("");
+        }
+
+        if (connection === "close") {
+          const statusCode =
+            lastDisconnect?.error?.output?.statusCode;
+
+          const shouldReconnect =
+            statusCode !== DisconnectReason.loggedOut;
+
+          if (shouldReconnect) {
+            console.log("🔄 MALIYA-X reconnecting...");
+
+            setTimeout(() => {
+              startMaliya().catch((err) => {
+                console.log(
+                  "❌ Reconnect error:",
+                  err?.message || err
+                );
+              });
+            }, 5000);
+          } else {
+            console.log("❌ WhatsApp logged out.");
+            console.log("🔑 Pair again.");
+          }
+        }
+      } catch (err) {
+        console.log(
+          "❌ Connection error:",
+          err?.message || err
+        );
       }
     }
   );
 
-  // ==================== PAIRING CODE ====================
+  // =====================================================
+  // PAIRING CODE
+  // =====================================================
 
   if (!sock.authState.creds.registered) {
-
     setTimeout(async () => {
-
       try {
-
         let phoneNumber =
           process.env.PHONE_NUMBER || "94770678992";
 
-        phoneNumber =
-          String(phoneNumber)
-            .replace(/\+/g, "")
-            .replace(/\s/g, "")
-            .replace(/-/g, "");
+        phoneNumber = String(phoneNumber)
+          .replace(/\+/g, "")
+          .replace(/\s/g, "")
+          .replace(/-/g, "");
 
         console.log("📱 Requesting pairing code...");
 
@@ -166,16 +185,12 @@ async function startMaliya() {
         console.log(`🔑 YOUR PAIRING CODE: ${code}`);
         console.log("====================================");
         console.log("");
-
       } catch (err) {
-
         console.log(
           "❌ Pairing code error:",
           err?.message || err
         );
-
       }
-
     }, 5000);
   }
 
@@ -186,20 +201,19 @@ async function startMaliya() {
   sock.ev.on(
     "group-participants.update",
     async (anu) => {
-
       try {
-
         const metadata =
           await sock.groupMetadata(anu.id);
 
         const participants =
-          anu.participants || [];
+          Array.isArray(anu.participants)
+            ? anu.participants
+            : [];
 
         const { date, time } = getTime();
 
         for (const participant of participants) {
-
-          // 🔧 FIX FOR "num.split is not a function"
+          // FIX: Always convert participant to string JID
           const num =
             getParticipantId(participant);
 
@@ -211,13 +225,15 @@ async function startMaliya() {
             continue;
           }
 
+          const cleanNumber =
+            String(num).split("@")[0];
+
           const tag =
-            `@${String(num).split("@")[0]}`;
+            `@${cleanNumber}`;
 
           // ==================== WELCOME ====================
 
           if (anu.action === "add") {
-
             const welcomeText =
 `╭━━━〔 🌸 WELCOME 〕━━━╮
 
@@ -253,7 +269,6 @@ async function startMaliya() {
             anu.action === "remove" ||
             anu.action === "leave"
           ) {
-
             const goodbyeText =
 `╭━━━〔 👋 GOODBYE 〕━━━╮
 
@@ -281,14 +296,11 @@ async function startMaliya() {
             );
           }
         }
-
       } catch (err) {
-
         console.log(
           "❌ Welcome/Goodbye error:",
           err?.message || err
         );
-
       }
     }
   );
@@ -300,19 +312,17 @@ async function startMaliya() {
   sock.ev.on(
     "messages.upsert",
     async ({ messages }) => {
-
       try {
-
         const msg = messages?.[0];
 
         if (!msg?.message) return;
 
-        // Ignore status messages
         if (
           msg.key?.remoteJid === "status@broadcast"
-        ) return;
+        ) {
+          return;
+        }
 
-        // Ignore bot's own messages
         if (msg.key?.fromMe) return;
 
         const text =
@@ -330,7 +340,9 @@ async function startMaliya() {
           parts.slice(1).join(" ").trim();
 
         const remoteJid =
-          msg.key.remoteJid;
+          msg.key?.remoteJid;
+
+        if (!remoteJid) return;
 
         const pushName =
           msg.pushName || "User";
@@ -343,7 +355,6 @@ async function startMaliya() {
         // =================================================
 
         if (cmd === ".ping") {
-
           await sock.sendMessage(
             remoteJid,
             {
@@ -371,7 +382,6 @@ async function startMaliya() {
           cmd === ".menu" ||
           cmd === ".help"
         ) {
-
           const menu =
 `╭━━━〔 👑 MALIYA-X 🇱🇰 〕━━━╮
 ┃
@@ -435,7 +445,6 @@ async function startMaliya() {
         // =================================================
 
         if (cmd === ".time") {
-
           await sock.sendMessage(
             remoteJid,
             {
@@ -460,9 +469,7 @@ async function startMaliya() {
           cmd === ".song" ||
           cmd === ".audio"
         ) {
-
           if (!args) {
-
             await sock.sendMessage(
               remoteJid,
               {
@@ -478,7 +485,6 @@ Example:
           }
 
           try {
-
             await sock.sendMessage(
               remoteJid,
               {
@@ -494,7 +500,6 @@ Example:
               search.videos?.[0];
 
             if (!video) {
-
               await sock.sendMessage(
                 remoteJid,
                 {
@@ -516,7 +521,6 @@ Example:
               response.data?.result?.download_url;
 
             if (!downloadUrl) {
-
               await sock.sendMessage(
                 remoteJid,
                 {
@@ -538,11 +542,9 @@ Example:
                 ptt: false
               }
             );
-
           } catch (err) {
-
             console.log(
-              "Song error:",
+              "❌ Song error:",
               err?.message || err
             );
 
@@ -566,9 +568,7 @@ Example:
           cmd === ".ytdl" ||
           cmd === ".video"
         ) {
-
           if (!args) {
-
             await sock.sendMessage(
               remoteJid,
               {
@@ -584,7 +584,6 @@ Example:
           }
 
           try {
-
             await sock.sendMessage(
               remoteJid,
               {
@@ -600,7 +599,6 @@ Example:
               search.videos?.[0];
 
             if (!video) {
-
               await sock.sendMessage(
                 remoteJid,
                 {
@@ -622,7 +620,6 @@ Example:
               response.data?.result?.download_url;
 
             if (!downloadUrl) {
-
               await sock.sendMessage(
                 remoteJid,
                 {
@@ -646,11 +643,9 @@ Example:
 👑 MALIYA-X 🇱🇰`
               }
             );
-
           } catch (err) {
-
             console.log(
-              "Video error:",
+              "❌ Video error:",
               err?.message || err
             );
 
@@ -674,9 +669,7 @@ Example:
           cmd === ".social" ||
           cmd === ".dl"
         ) {
-
           if (!args) {
-
             await sock.sendMessage(
               remoteJid,
               {
@@ -692,7 +685,6 @@ Example:
           }
 
           try {
-
             await sock.sendMessage(
               remoteJid,
               {
@@ -716,7 +708,6 @@ Example:
               result?.video;
 
             if (!downloadUrl) {
-
               await sock.sendMessage(
                 remoteJid,
                 {
@@ -740,11 +731,9 @@ Example:
 👑 MALIYA-X 🇱🇰`
               }
             );
-
           } catch (err) {
-
             console.log(
-              "Social error:",
+              "❌ Social error:",
               err?.message || err
             );
 
@@ -768,9 +757,7 @@ Example:
           cmd === ".sticker" ||
           cmd === ".s"
         ) {
-
           try {
-
             const imageMessage =
               msg.message.imageMessage;
 
@@ -783,7 +770,6 @@ Example:
               quoted?.imageMessage;
 
             if (!imageMessage && !quotedImage) {
-
               await sock.sendMessage(
                 remoteJid,
                 {
@@ -807,18 +793,14 @@ Example:
                 "image"
               );
 
-            let buffer =
-              Buffer.alloc(0);
+            const chunks = [];
 
-            for await (
-              const chunk of stream
-            ) {
-              buffer =
-                Buffer.concat([
-                  buffer,
-                  chunk
-                ]);
+            for await (const chunk of stream) {
+              chunks.push(chunk);
             }
+
+            const buffer =
+              Buffer.concat(chunks);
 
             await sock.sendMessage(
               remoteJid,
@@ -829,11 +811,9 @@ Example:
                 quoted: msg
               }
             );
-
           } catch (err) {
-
             console.log(
-              "Sticker error:",
+              "❌ Sticker error:",
               err?.message || err
             );
 
@@ -854,9 +834,7 @@ Example:
         // =================================================
 
         if (cmd === ".ai") {
-
           if (!args) {
-
             await sock.sendMessage(
               remoteJid,
               {
@@ -872,7 +850,6 @@ Example:
           }
 
           try {
-
             await sock.sendMessage(
               remoteJid,
               {
@@ -883,7 +860,7 @@ Example:
 
             const response =
               await axios.get(
-`https://apis.davidcyriltech.my.id/ai/gemini?query=${encodeURIComponent(args)}`
+                `https://apis.davidcyriltech.my.id/ai/gemini?query=${encodeURIComponent(args)}`
               );
 
             const answer =
@@ -902,11 +879,9 @@ ${answer}
 👑 MALIYA-X 🇱🇰`
               }
             );
-
           } catch (err) {
-
             console.log(
-              "AI error:",
+              "❌ AI error:",
               err?.message || err
             );
 
@@ -927,9 +902,7 @@ ${answer}
         // =================================================
 
         if (cmd === ".groupinfo") {
-
           if (!remoteJid.endsWith("@g.us")) {
-
             await sock.sendMessage(
               remoteJid,
               {
@@ -941,15 +914,16 @@ ${answer}
             return;
           }
 
-          const group =
-            await sock.groupMetadata(
-              remoteJid
-            );
+          try {
+            const group =
+              await sock.groupMetadata(
+                remoteJid
+              );
 
-          await sock.sendMessage(
-            remoteJid,
-            {
-              text:
+            await sock.sendMessage(
+              remoteJid,
+              {
+                text:
 `╭━━〔 👥 GROUP INFO 〕━━╮
 
 📛 Name:
@@ -961,8 +935,14 @@ ${group.participants.length}
 👑 MALIYA-X 🇱🇰
 
 ╰━━━━━━━━━━━━━━━━╯`
-            }
-          );
+              }
+            );
+          } catch (err) {
+            console.log(
+              "❌ Group info error:",
+              err?.message || err
+            );
+          }
 
           return;
         }
@@ -972,9 +952,7 @@ ${group.participants.length}
         // =================================================
 
         if (cmd === ".tagall") {
-
           if (!remoteJid.endsWith("@g.us")) {
-
             await sock.sendMessage(
               remoteJid,
               {
@@ -986,35 +964,42 @@ ${group.participants.length}
             return;
           }
 
-          const group =
-            await sock.groupMetadata(
-              remoteJid
-            );
+          try {
+            const group =
+              await sock.groupMetadata(
+                remoteJid
+              );
 
-          const members =
-            group.participants;
+            const members =
+              group.participants || [];
 
-          const mentions =
-            members.map(
-              p => p.id
-            );
+            const mentions =
+              members
+                .map(p => getParticipantId(p))
+                .filter(Boolean);
 
-          const message =
-args ||
-"📢 හැමෝගෙම අවධානය පිණිසයි!";
+            const message =
+              args ||
+              "📢 හැමෝගෙම අවධානය පිණිසයි!";
 
-          await sock.sendMessage(
-            remoteJid,
-            {
-              text:
+            await sock.sendMessage(
+              remoteJid,
+              {
+                text:
 `📢 *GROUP ANNOUNCEMENT*
 
 ${message}
 
 👑 MALIYA-X 🇱🇰`,
-              mentions
-            }
-          );
+                mentions
+              }
+            );
+          } catch (err) {
+            console.log(
+              "❌ Tagall error:",
+              err?.message || err
+            );
+          }
 
           return;
         }
@@ -1024,9 +1009,7 @@ ${message}
         // =================================================
 
         if (cmd === ".admin") {
-
           if (!remoteJid.endsWith("@g.us")) {
-
             await sock.sendMessage(
               remoteJid,
               {
@@ -1038,45 +1021,61 @@ ${message}
             return;
           }
 
-          const group =
-            await sock.groupMetadata(
-              remoteJid
-            );
-
-          const admins =
-            group.participants
-              .filter(
-                p =>
-                  p.admin === "admin" ||
-                  p.admin === "superadmin"
+          try {
+            const group =
+              await sock.groupMetadata(
+                remoteJid
               );
 
-          const mentions =
-            admins.map(
-              p => p.id
-            );
+            const admins =
+              (group.participants || [])
+                .filter(
+                  p =>
+                    p.admin === "admin" ||
+                    p.admin === "superadmin"
+                );
 
-          let text =
+            const mentions =
+              admins
+                .map(p => getParticipantId(p))
+                .filter(Boolean);
+
+            let adminText =
 `🛡️ *GROUP ADMINS*
 
 `;
 
-          for (const admin of admins) {
+            if (admins.length === 0) {
+              adminText +=
+                "❌ Admin කෙනෙක් හමු වුණේ නැහැ.";
+            } else {
+              for (const admin of admins) {
+                const id =
+                  getParticipantId(admin);
 
-            const id =
-              getParticipantId(admin);
+                if (!id) continue;
 
-            text +=
-              `👑 @${id.split("@")[0]}\n`;
-          }
-
-          await sock.sendMessage(
-            remoteJid,
-            {
-              text,
-              mentions
+                adminText +=
+                  `👑 @${String(id).split("@")[0]}\n`;
+              }
             }
-          );
+
+            adminText +=
+              "\n👑 MALIYA-X 🇱🇰";
+
+            await sock.sendMessage(
+              remoteJid,
+              {
+                text: adminText,
+                mentions
+              }
+            );
+          } catch (err) {
+            console.log(
+              "❌ Admin error:",
+              err?.message || err
+            );
+          }
 
           return;
         }
@@ -1086,9 +1085,7 @@ ${message}
         // =================================================
 
         if (cmd === ".calc") {
-
           if (!args) {
-
             await sock.sendMessage(
               remoteJid,
               {
@@ -1101,7 +1098,6 @@ ${message}
           }
 
           try {
-
             const safe =
               args.replace(
                 /[^0-9+\-*/().% ]/g,
@@ -1129,9 +1125,7 @@ ${message}
 👑 MALIYA-X 🇱🇰`
               }
             );
-
           } catch {
-
             await sock.sendMessage(
               remoteJid,
               {
@@ -1149,22 +1143,18 @@ ${message}
         // =================================================
 
         if (cmd === ".joke") {
-
           const jokes = [
-
             "😂 ගුරුවරයා: ගෙදර වැඩ කළාද?\nළමයා: සර් Wi-Fi තිබ්බේ නැහැ! 😂",
 
             "🤣 යාළුවා: උඹට මොනවද ඕනේ?\nමම: සල්ලි.\nයාළුවා: වෙන දෙයක්?\nමම: සල්ලි කිව්වනේ! 😂",
 
             "😂 අම්මා: Phone එකෙන් එළියට එන්න!\nමම: අම්මේ මේක තමයි මගේ ලෝකය! 🌍😂"
-
           ];
 
           const joke =
             jokes[
               Math.floor(
-                Math.random() *
-                jokes.length
+                Math.random() * jokes.length
               )
             ];
 
@@ -1188,9 +1178,7 @@ ${joke}
         // =================================================
 
         if (cmd === ".life") {
-
           const messages = [
-
             "🌱 අද කරන පොඩි උත්සාහයක් හෙට ලොකු ජයග්‍රහණයක් වෙන්න පුළුවන්. අත්හරින්න එපා.",
 
             "💎 ඔබේ වටිනාකම තීරණය කරන්නේ අනිත් අය නොව ඔබේ ක්‍රියාවන්.",
@@ -1198,7 +1186,6 @@ ${joke}
             "🌈 අඳුරු කාලය සදාකාලික නැහැ. හිරු නැවත පායනවා.",
 
             "🕊️ ජීවිතය කෙටි නිසා වෛරයට වඩා ආදරයට ඉඩ දෙන්න."
-
           ];
 
           const message =
@@ -1229,15 +1216,12 @@ ${message}
         // =================================================
 
         if (cmd === ".motivate") {
-
           const messages = [
-
             "🔥 වැටුණත් නැගිටින්න. ජයග්‍රහණය ලැබෙන්නේ අත් නොහරින අයටයි.",
 
             "💪 අද අමාරු වුණත් හෙට ඒ උත්සාහය ගැන ඔබ ආඩම්බර වේවි.",
 
             "⚡ ඔබට පුළුවන්. ඔබ ඔබව විශ්වාස කරන්න."
-
           ];
 
           const message =
@@ -1268,15 +1252,12 @@ ${message}
         // =================================================
 
         if (cmd === ".quote") {
-
           const quotes = [
-
             "📖 ජීවිතය වෙනස් වෙන්නේ ඔබ ගන්නා තීරණ වලින්.",
 
             "📖 අඳුර තිබුණත් ආලෝකයක් සොයන්න.",
 
             "📖 ඔබේ ගමන අනිත් අයගේ ගමන සමඟ සසඳන්න එපා."
-
           ];
 
           const quote =
@@ -1307,15 +1288,12 @@ ${quote}
         // =================================================
 
         if (cmd === ".fact") {
-
           const facts = [
-
             "🧠 මිනිස් මොළය විදුලි සංඥා භාවිතා කරමින් ක්‍රියා කරයි.",
 
             "🌍 පෘථිවියේ මතුපිටින් විශාල කොටසක් සාගරයෙන් ආවරණය වී ඇත.",
 
             "🐙 Octopus සතුන්ට හදවත් තුනක් තිබේ."
-
           ];
 
           const fact =
@@ -1346,9 +1324,7 @@ ${fact}
         // =================================================
 
         if (cmd === ".challenge") {
-
           const challenges = [
-
             "🎯 අද කෙනෙක්ට හොඳ වචනයක් කියන්න.",
 
             "🎯 විනාඩි 20ක් අලුත් දෙයක් ඉගෙන ගන්න.",
@@ -1356,7 +1332,6 @@ ${fact}
             "🎯 අද කෙනෙක්ට උදව් කරන්න.",
 
             "🎯 Phone එකෙන් විනාඩි 30ක් ඉවත් වෙලා ඔබේ අරමුණක් ගැන වැඩ කරන්න."
-
           ];
 
           const challenge =
@@ -1389,7 +1364,6 @@ ${challenge}
         // =================================================
 
         if (cmd === ".morning") {
-
           await sock.sendMessage(
             remoteJid,
             {
@@ -1415,7 +1389,6 @@ ${challenge}
         // =================================================
 
         if (cmd === ".night") {
-
           await sock.sendMessage(
             remoteJid,
             {
@@ -1439,7 +1412,6 @@ ${challenge}
         // =================================================
 
         if (cmd === ".respect") {
-
           await sock.sendMessage(
             remoteJid,
             {
@@ -1462,7 +1434,6 @@ ${challenge}
         // =================================================
 
         if (cmd === ".friend") {
-
           await sock.sendMessage(
             remoteJid,
             {
@@ -1481,22 +1452,40 @@ ${challenge}
         }
 
       } catch (err) {
-
         console.log(
           "❌ Message handler error:",
           err?.message || err
         );
-
       }
     }
   );
 }
 
-// ==================== START ====================
+// =====================================================
+// START BOT
+// =====================================================
 
 startMaliya().catch((err) => {
   console.log(
     "❌ Fatal bot error:",
+    err?.message || err
+  );
+});
+
+// =====================================================
+// GLOBAL ERROR LOGGING
+// =====================================================
+
+process.on("uncaughtException", (err) => {
+  console.log(
+    "❌ Uncaught Exception:",
+    err?.message || err
+  );
+});
+
+process.on("unhandledRejection", (err) => {
+  console.log(
+    "❌ Unhandled Rejection:",
     err?.message || err
   );
 });
