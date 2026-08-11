@@ -1,6 +1,6 @@
 {
   "name": "maliya-x",
-  "version": "2.0.0",
+  "version": "1.0.0",
   "description": "MALIYA-X Sri Lankan WhatsApp MD Bot",
   "main": "index.js",
   "scripts": {
@@ -8,9 +8,10 @@
   },
   "dependencies": {
     "@whiskeysockets/baileys": "latest",
-    "pino": "latest",
-    "express": "latest",
     "axios": "latest",
+    "express": "latest",
+    "pino": "latest",
+    "qrcode-terminal": "latest",
     "yt-search": "latest"
   }
 }
