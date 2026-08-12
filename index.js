@@ -1,8 +1,8 @@
 /**
  * MALIYA-X V2 - WhatsApp Bot
- * Complete Production Source Code with Express Server, Connection Notification Message, 
- * Image Menus, Interactive Buttons, Working YouTube Thumbnails/Downloads, Sticker Maker, 
- * HD Quality Selectors, Advanced NSFW List, Auto Greetings, & DP Welcomes.
+ * Complete Production Source Code with Express Server, Pairing Code Support, 
+ * Connection Notification Message, Image Menus, Interactive Buttons, Working YouTube Thumbnails/Downloads, 
+ * Sticker Maker, HD Quality Selectors, Advanced NSFW List, Auto Greetings, & DP Welcomes.
  */
 
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
@@ -22,22 +22,39 @@ app.listen(PORT, () => {
     console.log(`Server is listening on port ${PORT}`);
 });
 
+// ඔබගේ WhatsApp අංකය මෙහි සඳහන් කරන්න (Pairing Code එක ලබා ගැනීමට - උදා: 9477xxxxxxx)
+const phoneNumber = "94770678992";
+
 async function startMaliyaX() {
     const { state, saveCreds } = await useMultiFileAuthState('./session');
     
     const sock = makeWASocket({
         auth: state,
         logger: pino({ level: 'silent' }),
-        printQRInTerminal: true
+        printQRInTerminal: false // Render වල QR වෙනුවට Pairing Code පාවිච්චි කිරීමට
     });
 
-    // 1. Bot Connected Notification & WhatsApp Owner/Bot Number Message Alert
+    // Pairing Code Generator for Terminal
+    if (!sock.authState.creds.registered) {
+        setTimeout(async () => {
+            try {
+                let code = await sock.requestPairingCode(phoneNumber);
+                code = code?.match(/.{1,4}/g)?.join("-") || code;
+                console.log(`\n🔑 ========================================`);
+                console.log(`🔑 YOUR PAIRING CODE: ${code}`);
+                console.log(`🔑 ========================================\n`);
+            } catch (err) {
+                console.error('Error generating pairing code:', err);
+            }
+        }, 4000);
+    }
+
+    // 1. Bot Connected Notification & WhatsApp Owner Number Message Alert
     sock.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect } = update;
         if (connection === 'open') {
             console.log('✅ MALIYA-X V2 Connected Successfully! 🇱🇰🔥');
             
-            // Send connection message to the bot's own chat or owner number once connected
             try {
                 const botNumber = sock.user.id.split(':')[0] + '@s.whatsapp.net';
                 const connectedMsg = `🚀 *MALIYA-X V2 Bot Connected Successfully!* 🇱🇰🔥\n\n` +
