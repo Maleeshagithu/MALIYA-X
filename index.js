@@ -3,8 +3,7 @@ const {
   useMultiFileAuthState,
   DisconnectReason,
   Browsers,
-  downloadContentFromMessage,
-  jidNormalizedUser
+  downloadContentFromMessage
 } = require("@whiskeysockets/baileys");
 
 const P = require("pino");
@@ -14,1713 +13,1551 @@ const ytSearch = require("yt-search");
 const fs = require("fs");
 const path = require("path");
 
-const BOT = process.env.BOT_NAME || "MALIYA-X";
+/* =========================================================
+   MALIYA-X 🇱🇰
+   WhatsApp MD Bot
+   ========================================================= */
+
+// =========================
+// CONFIG
+// =========================
+
+const BOT_NAME = "MALIYA-X 🇱🇰";
+
 const PREFIX = ".";
+
+// Put your number in Render Environment Variables.
+// Example: 94771234567
+const PHONE_NUMBER = process.env.PHONE_NUMBER || "";
+
+// Optional owner number
+const OWNER_NUMBER = process.env.OWNER_NUMBER || PHONE_NUMBER;
+
+// Render port
 const PORT = process.env.PORT || 3000;
 
-const PHONE = (process.env.PHONE_NUMBER || "94770678992").replace(/\D/g, "");
-const OWNER = (process.env.OWNER_NUMBER || PHONE).replace(/\D/g, "");
+// Auth folder
+const AUTH_DIR = "./auth_info";
 
-const API =
-  process.env.API_BASE ||
-  "https://apis.davidcyriltech.my.id";
+// Menu image
+const MENU_IMAGE =
+  "https://i.ibb.co/6Pqj45q/file-000000001bac8208a30c54ead6b411f7.png";
 
-const AUTH_DIR = path.join(__dirname, "auth_info");
-const MENU_IMAGE = path.join(__dirname, "menu.jpg");
+// =========================
+// EXPRESS SERVER
+// =========================
 
 const app = express();
 
 app.get("/", (req, res) => {
-  res.send(`${BOT} 🇱🇰 is running successfully!`);
+  res.send("MALIYA-X Bot is running successfully! 🇱🇰");
+});
+
+app.get("/health", (req, res) => {
+  res.json({
+    bot: BOT_NAME,
+    status: "online",
+    time: new Date().toISOString()
+  });
 });
 
 app.listen(PORT, () => {
-  console.log(`🌐 Render server running on port ${PORT}`);
+  console.log(`🌐 Server running on port ${PORT}`);
 });
 
-const logger = P({ level: "silent" });
+// =========================
+// HELPERS
+// =========================
 
-/* =========================================================
-   BASIC FUNCTIONS
-========================================================= */
+function getText(message) {
+  if (!message) return "";
 
-function getDate() {
+  return (
+    message.conversation ||
+    message.extendedTextMessage?.text ||
+    message.imageMessage?.caption ||
+    message.videoMessage?.caption ||
+    message.documentMessage?.caption ||
+    message.buttonsResponseMessage?.selectedButtonId ||
+    message.listResponseMessage?.singleSelectReply?.selectedRowId ||
+    message.templateButtonReplyMessage?.selectedId ||
+    ""
+  );
+}
+
+function cleanNumber(jid = "") {
+  return jid.split("@")[0].split(":")[0];
+}
+
+function formatDate() {
   return new Date().toLocaleDateString("en-GB", {
     timeZone: "Asia/Colombo"
   });
 }
 
-function getTime() {
+function formatTime() {
   return new Date().toLocaleTimeString("en-US", {
     timeZone: "Asia/Colombo",
     hour12: true
   });
 }
 
-function getHour() {
-  return Number(
-    new Intl.DateTimeFormat("en-US", {
-      timeZone: "Asia/Colombo",
-      hour: "numeric",
-      hour12: false
-    }).format(new Date())
-  );
+function isGroup(jid = "") {
+  return jid.endsWith("@g.us");
 }
 
-function getMinute() {
-  return Number(
-    new Intl.DateTimeFormat("en-US", {
-      timeZone: "Asia/Colombo",
-      minute: "numeric"
-    }).format(new Date())
-  );
+async function sendText(sock, jid, text, quoted) {
+  return sock.sendMessage(jid, { text }, { quoted });
 }
 
-function getJid(x) {
-  return jidNormalizedUser(x || "");
-}
+async function downloadMedia(message, type) {
+  const stream = await downloadContentFromMessage(message, type);
 
-function getNumber(x) {
-  let jid = "";
+  const chunks = [];
 
-  if (typeof x === "string") {
-    jid = x;
-  } else if (x?.id) {
-    jid = x.id;
-  } else if (x?.jid) {
-    jid = x.jid;
-  } else if (x?.participant) {
-    jid = x.participant;
+  for await (const chunk of stream) {
+    chunks.push(chunk);
   }
 
-  return String(jid).split("@")[0];
+  return Buffer.concat(chunks);
 }
 
-/* =========================================================
-   MESSAGE TEXT
-========================================================= */
-
-function getText(m) {
-  const msg = m?.message || {};
-
-  return (
-    msg.conversation ||
-    msg.extendedTextMessage?.text ||
-    msg.imageMessage?.caption ||
-    msg.videoMessage?.caption ||
-    msg.documentMessage?.caption ||
-    msg.listResponseMessage?.singleSelectReply?.selectedRowId ||
-    msg.buttonsResponseMessage?.selectedButtonId ||
-    msg.templateButtonReplyMessage?.selectedId ||
-    msg.interactiveResponseMessage?.nativeFlowResponseMessage
-      ?.paramsJson ||
-    ""
-  ).trim();
-}
-
-function unwrapMessage(m) {
-  let msg = m?.message || m || {};
-
-  while (msg.ephemeralMessage?.message) {
-    msg = msg.ephemeralMessage.message;
-  }
-
-  while (msg.viewOnceMessage?.message) {
-    msg = msg.viewOnceMessage.message;
-  }
-
-  return msg;
-}
-
-function getQuoted(m) {
-  const msg = unwrapMessage(m);
-
-  const context =
-    msg.extendedTextMessage?.contextInfo ||
-    msg.imageMessage?.contextInfo ||
-    msg.videoMessage?.contextInfo ||
-    msg.documentMessage?.contextInfo;
-
-  return context?.quotedMessage || {};
-}
-
-/* =========================================================
-   API
-========================================================= */
-
-async function api(url, params = {}, timeout = 60000) {
-  return axios.get(url, {
-    params,
-    timeout,
-    validateStatus: () => true
-  });
-}
-
-/* =========================================================
-   MAIN MENU
-========================================================= */
-
-function mainMenu() {
-  return `
-╭━━〔 👑 ${BOT} 🇱🇰 〕━━╮
-┃ 👋 ආයුබෝවන්!
-┃ 🤖 Sri Lankan WhatsApp Bot
-┃ ⚡ Fast • Powerful • Secure
-┃ 📅 ${getDate()}
-┃ 🕐 ${getTime()}
-╰━━━━━━━━━━━━━━━━━━━━━━╯
-
-✨ *COMMAND MENU* ✨
-
-1️⃣ 🔎 SEARCH
-2️⃣ 📥 DOWNLOAD
-3️⃣ 👥 GROUP
-4️⃣ 🤖 AI
-5️⃣ 🛠️ TOOLS
-6️⃣ 🎉 FUN
-7️⃣ 👑 OWNER
-8️⃣ 📜 ALL COMMANDS
-
-━━━━━━━━━━━━━━━━━━━━━━
-📌 *Number එක reply කරන්න.*
-
-👑 Powered by ${BOT} 🇱🇰
-`;
-}
-
-const menus = new Map();
-
-async function sendMenu(sock, jid, quoted) {
-  menus.set(jid, Date.now());
-
-  setTimeout(() => {
-    menus.delete(jid);
-  }, 10 * 60 * 1000);
-
-  if (fs.existsSync(MENU_IMAGE)) {
-    await sock.sendMessage(
-      jid,
-      {
-        image: fs.readFileSync(MENU_IMAGE),
-        caption: mainMenu()
-      },
-      { quoted }
-    );
-  } else {
-    await sock.sendMessage(
-      jid,
-      {
-        text: mainMenu()
-      },
-      { quoted }
-    );
-  }
-}
-
-/* =========================================================
-   SUB MENUS
-========================================================= */
-
-const subMenus = {
-  1: `
-╭━━〔 🔎 SEARCH MENU 〕━━╮
-
-🎵 .song <name>
-🎬 .video <name>
-🔗 .yt <URL>
-
-╰━━━━━━━━━━━━━━━━━━━━━━╯
-`,
-
-  2: `
-╭━━〔 📥 DOWNLOAD MENU 〕━━╮
-
-🎵 .song <song>
-🎬 .video <URL/name>
-📥 .social <URL>
-🧩 .sticker
-
-╰━━━━━━━━━━━━━━━━━━━━━━╯
-`,
-
-  3: `
-╭━━〔 👥 GROUP MENU 〕━━╮
-
-👥 .groupinfo
-👑 .admins
-📢 .tagall
-➕ .promote @user
-➖ .demote @user
-🚫 .kick @user
-
-╰━━━━━━━━━━━━━━━━━━━━━━╯
-`,
-
-  4: `
-╭━━〔 🤖 AI MENU 〕━━╮
-
-🤖 .ai <question>
-
-Example:
-.ai Sri Lanka ගැන කියන්න
-
-╰━━━━━━━━━━━━━━━━━━━━━━╯
-`,
-
-  5: `
-╭━━〔 🛠️ TOOLS MENU 〕━━╮
-
-⚡ .ping
-🕐 .time
-🌅 .morning
-🌙 .night
-❤️ .respect
-🤝 .friend
-
-╰━━━━━━━━━━━━━━━━━━━━━━╯
-`,
-
-  6: `
-╭━━〔 🎉 FUN MENU 〕━━╮
-
-😂 .joke
-💡 .quote
-🧠 .fact
-🔥 .motivate
-
-╰━━━━━━━━━━━━━━━━━━━━━━╯
-`,
-
-  7: `
-╭━━〔 👑 OWNER MENU 〕━━╮
-
-👑 .owner
-📊 .botinfo
-🔄 .restart
-
-╰━━━━━━━━━━━━━━━━━━━━━━╯
-`,
-
-  8: `
-╭━━〔 📜 ALL COMMANDS 〕━━╮
-
-.menu
-.ping
-.time
-.song
-.audio
-.video
-.ytdl
-.social
-.dl
-.sticker
-.s
-.ai
-
-.groupinfo
-.admins
-.tagall
-.promote
-.demote
-.kick
-
-.morning
-.night
-.respect
-.friend
-.joke
-.quote
-.fact
-.motivate
-
-.owner
-.botinfo
-.restart
-
-╰━━━━━━━━━━━━━━━━━━━━━━╯
-`
-};
-
-/* =========================================================
-   PING
-========================================================= */
-
-async function ping(sock, jid, quoted) {
-  const start = Date.now();
-
-  const msg = await sock.sendMessage(
-    jid,
-    {
-      text: "⚡ MALIYA-X speed checking..."
-    },
-    { quoted }
-  );
-
-  const ms = Date.now() - start;
-
-  const uptime = process.uptime();
-
-  const h = Math.floor(uptime / 3600);
-  const m = Math.floor((uptime % 3600) / 60);
-  const s = Math.floor(uptime % 60);
-
-  const result = `
-╭━━〔 ⚡ ${BOT} SPEED 〕━━╮
-┃ 🚀 Speed : ${ms} ms
-┃ ⏳ Uptime : ${h}h ${m}m ${s}s
-┃ 🟢 Status : ONLINE
-┃ 📅 Date : ${getDate()}
-┃ 🕐 Time : ${getTime()}
-╰━━━━━━━━━━━━━━━━━━━━━━╯
-
-👑 ${BOT} 🇱🇰
-`;
-
+async function getGroupMetadata(sock, jid) {
   try {
-    return await sock.sendMessage(jid, {
-      text: result,
-      edit: msg.key
-    });
+    return await sock.groupMetadata(jid);
   } catch {
-    return sock.sendMessage(
-      jid,
-      {
-        text: result
-      },
-      { quoted }
-    );
+    return null;
   }
 }
 
-/* =========================================================
-   TIME
-========================================================= */
+async function isAdmin(sock, jid, userJid) {
+  if (!isGroup(jid)) return false;
 
-async function sendTime(sock, jid, quoted) {
-  return sock.sendMessage(
-    jid,
-    {
-      text: `
-╭━━〔 🕐 TIME 〕━━╮
+  const metadata = await getGroupMetadata(sock, jid);
 
-📅 Date : ${getDate()}
-🕐 Time : ${getTime()}
-🌏 Timezone : Asia/Colombo
+  if (!metadata) return false;
 
-👑 ${BOT} 🇱🇰
-`
-    },
-    { quoted }
+  const user = metadata.participants.find(
+    p => p.id === userJid
+  );
+
+  return Boolean(user?.admin);
+}
+
+async function isBotAdmin(sock, jid) {
+  if (!isGroup(jid)) return false;
+
+  const metadata = await getGroupMetadata(sock, jid);
+
+  if (!metadata || !sock.user?.id) return false;
+
+  const botNumber = cleanNumber(sock.user.id);
+
+  const bot = metadata.participants.find(
+    p => cleanNumber(p.id) === botNumber
+  );
+
+  return Boolean(bot?.admin);
+}
+
+function getMentioned(message) {
+  return (
+    message?.extendedTextMessage?.contextInfo?.mentionedJid ||
+    []
   );
 }
 
-/* =========================================================
-   SONG
-========================================================= */
+function getQuotedMessage(message) {
+  return message?.extendedTextMessage?.contextInfo?.quotedMessage;
+}
 
-async function song(sock, jid, quoted, query) {
-  if (!query) {
-    return sock.sendMessage(
-      jid,
-      {
-        text: "🎵 භාවිතය:\n.song <song name>\n\nExample:\n.song Lelena"
-      },
-      { quoted }
-    );
-  }
+// =========================
+// MENU
+// =========================
 
-  await sock.sendMessage(
-    jid,
-    {
-      text: "🔎 Song එක search කරනවා..."
-    },
-    { quoted }
-  );
+function menuText(userName) {
+  return `
+╭━━━〔 ${BOT_NAME} 〕━━━╮
+┃ 👋 Hello ${userName}
+┃
+┃ 🇱🇰 Sri Lankan WhatsApp Bot
+╰━━━━━━━━━━━━━━━━━━━━╯
 
-  try {
-    const result = await ytSearch(query);
-    const video = result.videos?.[0];
+╭━━━〔 STATUS 〕━━━╮
+┃ ⚡ .ping
+┃ 🕐 .time
+┃ 🤖 .botinfo
+┃ 👑 .owner
+╰━━━━━━━━━━━━━━━━━━╯
 
-    if (!video) {
-      throw new Error("Song not found");
-    }
+╭━━━〔 DOWNLOADS 〕━━━╮
+┃ 🎵 .song <name/link>
+┃ 🎧 .audio <name/link>
+┃ 🎬 .video <name/link>
+┃ 📥 .ytdl <name/link>
+┃ 📱 .social <TikTok/IG/FB URL>
+┃ 📥 .dl <URL>
+╰━━━━━━━━━━━━━━━━━━━━╯
 
-    const title = video.title;
-    const url = video.url;
-    const duration = video.timestamp || "Unknown";
-    const thumbnail = video.thumbnail;
+╭━━━〔 AI & FUN 〕━━━╮
+┃ 🤖 .ai <question>
+┃ 😂 .joke
+┃ 💡 .fact
+┃ 💪 .motivate
+┃ 💬 .quote
+┃ ❤️ .life
+┃ 🎯 .challenge
+╰━━━━━━━━━━━━━━━━━━━━╯
 
-    /*
-      Search result card
-    */
+╭━━━〔 GROUP 〕━━━╮
+┃ 👋 .tagall
+┃ ℹ️ .groupinfo
+┃ 🔗 .antilink on/off
+┃ 👋 .welcome on/off
+┃ 🔕 .mute
+┃ 🔊 .unmute
+╰━━━━━━━━━━━━━━━━━━╯
 
-    const info = `
-╭━━〔 🎵 ${BOT} MUSIC 〕━━╮
+╭━━━〔 MEDIA 〕━━━╮
+┃ 🖼️ .sticker
+┃ 🖼️ .s
+╰━━━━━━━━━━━━━━━━━━╯
 
-🎧 *TITLE*
-${title}
+╭━━━〔 OTHER 〕━━━╮
+┃ 📋 .menu
+┃ 📋 .help
+╰━━━━━━━━━━━━━━━━━━╯
 
-⏱️ *DURATION* : ${duration}
+╭━━━〔 BOT INFO 〕━━━╮
+┃ 🤖 ${BOT_NAME}
+┃ 🇱🇰 Made for WhatsApp
+┃ 📅 ${formatDate()}
+┃ 🕐 ${formatTime()}
+╰━━━━━━━━━━━━━━━━━━━━╯
 
-🔗 *YOUTUBE*
-${url}
-
-━━━━━━━━━━━━━━━━━━━━━━
-
-🎶 Downloading audio...
-
-👑 Powered by ${BOT} 🇱🇰
+> Powered by ${BOT_NAME}
 `;
-
-    if (thumbnail) {
-      try {
-        await sock.sendMessage(
-          jid,
-          {
-            image: { url: thumbnail },
-            caption: info
-          },
-          { quoted }
-        );
-      } catch {
-        await sock.sendMessage(
-          jid,
-          {
-            text: info
-          },
-          { quoted }
-        );
-      }
-    } else {
-      await sock.sendMessage(
-        jid,
-        {
-          text: info
-        },
-        { quoted }
-      );
-    }
-
-    const response = await api(
-      `${API}/download/ytmp3`,
-      { url },
-      90000
-    );
-
-    const downloadUrl =
-      response.data?.result?.download_url ||
-      response.data?.result?.url ||
-      response.data?.download_url;
-
-    if (!downloadUrl) {
-      throw new Error("Audio URL unavailable");
-    }
-
-    return sock.sendMessage(
-      jid,
-      {
-        audio: { url: downloadUrl },
-        mimetype: "audio/mpeg",
-        fileName:
-          title.replace(/[\\/:*?"<>|]/g, "_") + ".mp3"
-      },
-      { quoted }
-    );
-  } catch (e) {
-    console.error("SONG ERROR:", e.message);
-
-    return sock.sendMessage(
-      jid,
-      {
-        text:
-          "❌ Song download කරන්න බැරි වුණා.\n\nAPI server එක temporary unavailable වෙන්න පුළුවන්."
-      },
-      { quoted }
-    );
-  }
 }
 
-/* =========================================================
-   VIDEO
-========================================================= */
+// =========================
+// RANDOM CONTENT
+// =========================
 
-async function video(sock, jid, quoted, query) {
-  if (!query) {
-    return sock.sendMessage(
-      jid,
-      {
-        text: "🎬 භාවිතය:\n.video <YouTube URL/name>"
-      },
-      { quoted }
-    );
-  }
+const jokes = [
+  "😂 Teacher: Why are you late? Student: Because the sign said SCHOOL AHEAD, so I went ahead slowly.",
+  "😂 මම WiFi password එක අහලා තිබ්බා... Password එක 'askme' කිව්වා. මම 'askme' කියලා ඇහුවා. 🤣",
+  "😂 Computer එකට doctor කෙනෙක් ඕන වුණේ virus එකක් තිබ්බ නිසා."
+];
 
-  await sock.sendMessage(
-    jid,
-    {
-      text: "🎬 Video එක search/download කරනවා..."
-    },
-    { quoted }
-  );
+const facts = [
+  "🌍 Earth is not a perfect sphere.",
+  "🐙 Octopuses have three hearts.",
+  "🌙 The Moon is slowly moving away from Earth.",
+  "🦈 Sharks are older than trees."
+];
 
-  try {
-    let url = query;
-    let title = "MALIYA-X Video";
-    let thumbnail = null;
+const quotes = [
+  "✨ Believe in yourself and keep moving forward.",
+  "🔥 Small progress is still progress.",
+  "💪 Never give up on something you truly want.",
+  "🌟 Your future needs your effort today."
+];
 
-    if (!/^https?:\/\//i.test(query)) {
-      const result = await ytSearch(query);
-      const found = result.videos?.[0];
+const motivations = [
+  "💪 අද පොඩි step එකක් ගත්තත් හෙට ලොකු result එකක් ලැබෙන්න පුළුවන්.",
+  "🔥 Give up නොවී continue කරන්න.",
+  "🌟 ඔයාට පුළුවන්. Start now!",
+  "🚀 Slow progress is better than no progress."
+];
 
-      if (!found) {
-        throw new Error("Video not found");
-      }
+const challenges = [
+  "🎯 Challenge: අද අලුත් දෙයක් ඉගෙනගන්න.",
+  "🎯 Challenge: පැයක් phone එකෙන් break එකක් ගන්න.",
+  "🎯 Challenge: අද කෙනෙක්ට හොඳ වචනයක් කියන්න.",
+  "🎯 Challenge: ඔයාගේ goal එක වෙනුවෙන් අද එක action එකක් ගන්න."
+];
 
-      url = found.url;
-      title = found.title;
-      thumbnail = found.thumbnail;
-    }
+const lifeReplies = [
+  "❤️ Life එක perfect නෑ. ඒත් ඒක තමයි ලස්සන.",
+  "❤️ Difficult days permanent නෑ.",
+  "🌱 හැම experience එකකින්ම දෙයක් ඉගෙනගන්න."
+];
 
-    const response = await api(
-      `${API}/download/ytmp4`,
-      { url },
-      120000
-    );
+// =========================
+// DOWNLOAD APIs
+// =========================
 
-    const downloadUrl =
-      response.data?.result?.download_url ||
-      response.data?.result?.url ||
-      response.data?.download_url;
+async function youtubeAudio(url) {
+  const api =
+    "https://apis.davidcyriltech.my.id/download/ytmp3?url=" +
+    encodeURIComponent(url);
 
-    if (!downloadUrl) {
-      throw new Error("Video URL unavailable");
-    }
+  const response = await axios.get(api, {
+    timeout: 30000
+  });
 
-    if (thumbnail) {
-      try {
-        await sock.sendMessage(
-          jid,
-          {
-            image: { url: thumbnail },
-            caption: `
-🎬 *${title}*
-
-📥 Video download started...
-
-👑 ${BOT} 🇱🇰
-`
-          },
-          { quoted }
-        );
-      } catch {}
-    }
-
-    return sock.sendMessage(
-      jid,
-      {
-        video: { url: downloadUrl },
-        mimetype: "video/mp4",
-        caption: `
-🎬 ${title}
-
-👑 Downloaded by ${BOT} 🇱🇰
-`
-      },
-      { quoted }
-    );
-  } catch (e) {
-    console.error("VIDEO ERROR:", e.message);
-
-    return sock.sendMessage(
-      jid,
-      {
-        text: "❌ Video download කරන්න බැරි වුණා."
-      },
-      { quoted }
-    );
-  }
+  return response.data?.result;
 }
 
-/* =========================================================
-   SOCIAL
-========================================================= */
+async function youtubeVideo(url) {
+  const api =
+    "https://apis.davidcyriltech.my.id/download/ytmp4?url=" +
+    encodeURIComponent(url);
 
-async function social(sock, jid, quoted, url) {
-  if (!url) {
-    return sock.sendMessage(
-      jid,
-      {
-        text: "📥 භාවිතය:\n.social <TikTok/Instagram/Facebook URL>"
-      },
-      { quoted }
-    );
-  }
+  const response = await axios.get(api, {
+    timeout: 30000
+  });
 
-  try {
-    await sock.sendMessage(
-      jid,
-      {
-        text: "📥 Social media video download කරනවා..."
-      },
-      { quoted }
-    );
-
-    const response = await api(
-      `${API}/download/all`,
-      { url },
-      120000
-    );
-
-    const data =
-      response.data?.result ||
-      response.data;
-
-    const downloadUrl =
-      data?.download_url ||
-      data?.url ||
-      data?.video ||
-      data?.media;
-
-    if (!downloadUrl) {
-      throw new Error("No download URL");
-    }
-
-    return sock.sendMessage(
-      jid,
-      {
-        video: { url: downloadUrl },
-        mimetype: "video/mp4",
-        caption: `📥 Downloaded by ${BOT} 🇱🇰`
-      },
-      { quoted }
-    );
-  } catch (e) {
-    console.error("SOCIAL ERROR:", e.message);
-
-    return sock.sendMessage(
-      jid,
-      {
-        text: "❌ Social download එක වැඩ කළේ නැහැ."
-      },
-      { quoted }
-    );
-  }
+  return response.data?.result;
 }
 
-/* =========================================================
-   STICKER
-========================================================= */
+async function socialDownload(url) {
+  const api =
+    "https://apis.davidcyriltech.my.id/download/all?url=" +
+    encodeURIComponent(url);
 
-async function sticker(sock, jid, message) {
-  const msg = unwrapMessage(message);
-  const quoted = getQuoted(message);
+  const response = await axios.get(api, {
+    timeout: 30000
+  });
 
-  const image =
-    msg.imageMessage ||
-    quoted.imageMessage;
-
-  const video =
-    msg.videoMessage ||
-    quoted.videoMessage;
-
-  if (!image && !video) {
-    return sock.sendMessage(
-      jid,
-      {
-        text:
-          "🧩 Image/video එකක් reply කරලා `.sticker` ගහන්න."
-      },
-      { quoted: message }
-    );
-  }
-
-  try {
-    const media = image || video;
-
-    const stream = await downloadContentFromMessage(
-      media,
-      image ? "image" : "video"
-    );
-
-    const chunks = [];
-
-    for await (const chunk of stream) {
-      chunks.push(chunk);
-    }
-
-    return sock.sendMessage(
-      jid,
-      {
-        sticker: Buffer.concat(chunks)
-      },
-      { quoted: message }
-    );
-  } catch (e) {
-    console.error("STICKER ERROR:", e.message);
-
-    return sock.sendMessage(
-      jid,
-      {
-        text: "❌ Sticker එක හදන්න බැරි වුණා."
-      },
-      { quoted: message }
-    );
-  }
+  return response.data?.result;
 }
 
-/* =========================================================
-   AI
-========================================================= */
+async function aiAsk(query) {
+  const api =
+    "https://apis.davidcyriltech.my.id/ai/gemini?query=" +
+    encodeURIComponent(query);
 
-async function ai(sock, jid, quoted, query) {
-  if (!query) {
-    return sock.sendMessage(
-      jid,
-      {
-        text: "🤖 භාවිතය:\n.ai <question>"
-      },
-      { quoted }
-    );
-  }
+  const response = await axios.get(api, {
+    timeout: 30000
+  });
 
-  try {
-    await sock.sendMessage(
-      jid,
-      {
-        text: "🤖 AI thinking..."
-      },
-      { quoted }
-    );
-
-    const response = await api(
-      `${API}/ai/gemini`,
-      { query },
-      60000
-    );
-
-    const answer =
-      response.data?.result ||
-      response.data?.response ||
-      response.data?.answer;
-
-    if (!answer) {
-      throw new Error("No AI response");
-    }
-
-    return sock.sendMessage(
-      jid,
-      {
-        text: `🤖 ${BOT} AI\n\n${answer}`
-      },
-      { quoted }
-    );
-  } catch (e) {
-    console.error("AI ERROR:", e.message);
-
-    return sock.sendMessage(
-      jid,
-      {
-        text: "❌ AI service එක දැන් unavailable."
-      },
-      { quoted }
-    );
-  }
+  return response.data?.result || response.data?.answer;
 }
 
-/* =========================================================
-   GROUP FUNCTIONS
-========================================================= */
+// =========================
+// START BOT
+// =========================
 
-async function groupInfo(sock, jid, quoted) {
-  if (!jid.endsWith("@g.us")) {
-    return sock.sendMessage(
-      jid,
-      {
-        text: "❌ මේ command එක Group එකකදී විතරයි."
-      },
-      { quoted }
-    );
-  }
+let reconnecting = false;
 
-  const group = await sock.groupMetadata(jid);
+async function startMaliya() {
+  if (reconnecting) return;
 
-  const admins = group.participants.filter(
-    p => p.admin
-  ).length;
-
-  return sock.sendMessage(
-    jid,
-    {
-      text: `
-╭━━〔 👥 GROUP INFO 〕━━╮
-
-🏷️ Name : ${group.subject}
-👥 Members : ${group.participants.length}
-👑 Admins : ${admins}
-🆔 Group ID : ${jid}
-
-👑 ${BOT} 🇱🇰
-`
-    },
-    { quoted }
-  );
-}
-
-async function admins(sock, jid, quoted) {
-  if (!jid.endsWith("@g.us")) {
-    return sock.sendMessage(
-      jid,
-      {
-        text: "❌ Group එකකදී විතරයි."
-      },
-      { quoted }
-    );
-  }
-
-  const group = await sock.groupMetadata(jid);
-
-  const list = group.participants.filter(
-    p => p.admin
-  );
-
-  const mentions = list
-    .map(p => p.id)
-    .filter(Boolean);
-
-  const text =
-    "╭━━〔 👑 GROUP ADMINS 〕━━╮\n\n" +
-    list
-      .map(
-        (p, i) =>
-          `${i + 1}. @${getNumber(p)}`
-      )
-      .join("\n") +
-    "\n\n╰━━━━━━━━━━━━━━━━━━━━━━╯";
-
-  return sock.sendMessage(
-    jid,
-    {
-      text,
-      mentions
-    },
-    { quoted }
-  );
-}
-
-async function tagAll(sock, jid, quoted) {
-  if (!jid.endsWith("@g.us")) {
-    return sock.sendMessage(
-      jid,
-      {
-        text: "❌ Group එකකදී විතරයි."
-      },
-      { quoted }
-    );
-  }
-
-  const group = await sock.groupMetadata(jid);
-
-  const mentions = group.participants
-    .map(p => p.id)
-    .filter(Boolean);
-
-  const text =
-    `📢 *${group.subject}*\n\n` +
-    group.participants
-      .map(
-        (p, i) =>
-          `${i + 1}. @${getNumber(p)}`
-      )
-      .join("\n");
-
-  return sock.sendMessage(
-    jid,
-    {
-      text,
-      mentions
-    },
-    { quoted }
-  );
-}
-
-/* =========================================================
-   ADMIN CHECK
-========================================================= */
-
-async function isAdmin(sock, jid, user) {
-  if (!jid.endsWith("@g.us")) return false;
-
-  const group = await sock.groupMetadata(jid);
-
-  const participant = group.participants.find(
-    p => p.id === user
-  );
-
-  return Boolean(participant?.admin);
-}
-
-async function getTarget(message, group) {
-  const msg = unwrapMessage(message);
-
-  const mentioned =
-    msg.extendedTextMessage?.contextInfo
-      ?.mentionedJid;
-
-  if (mentioned?.length) {
-    return mentioned[0];
-  }
-
-  const quoted =
-    msg.extendedTextMessage?.contextInfo
-      ?.participant;
-
-  if (quoted) {
-    return quoted;
-  }
-
-  return null;
-}
-
-/* =========================================================
-   PROMOTE / DEMOTE / KICK
-========================================================= */
-
-async function groupAction(sock, jid, message, action) {
-  if (!jid.endsWith("@g.us")) {
-    return sock.sendMessage(jid, {
-      text: "❌ Group එකකදී විතරයි."
-    });
-  }
-
-  const sender = message.key.participant || message.key.remoteJid;
-
-  const botNumber = `${PHONE}@s.whatsapp.net`;
-
-  const senderAdmin = await isAdmin(
-    sock,
-    jid,
-    sender
-  );
-
-  if (sender !== botNumber && !senderAdmin) {
-    return sock.sendMessage(jid, {
-      text: "❌ මේ command එක use කරන්න Group Admin කෙනෙක් වෙන්න ඕන."
-    });
-  }
-
-  const target = await getTarget(message, jid);
-
-  if (!target) {
-    return sock.sendMessage(jid, {
-      text:
-        `❌ User mention/reply කරන්න.\n\nExample:\n.${action} @user`
-    });
-  }
-
-  try {
-    await sock.groupParticipantsUpdate(
-      jid,
-      [target],
-      action
-    );
-
-    const messages = {
-      promote: `👑 @${getNumber(target)} දැන් Admin!`,
-      demote: `🔻 @${getNumber(target)} Admin තනතුරෙන් ඉවත් කළා.`,
-      remove: `🚫 @${getNumber(target)} group එකෙන් remove කළා.`
-    };
-
-    return sock.sendMessage(jid, {
-      text: messages[action],
-      mentions: [target]
-    });
-  } catch (e) {
-    return sock.sendMessage(jid, {
-      text: "❌ Group action එක කරන්න බැරි වුණා."
-    });
-  }
-}
-
-/* =========================================================
-   AUTO GOOD MORNING / GOOD NIGHT
-========================================================= */
-
-const autoSent = new Map();
-
-async function autoGreetings(sock) {
-  try {
-    const hour = getHour();
-    const minute = getMinute();
-
-    let type = null;
-
-    if (hour === 6 && minute === 30) {
-      type = "morning";
-    }
-
-    if (hour === 22 && minute === 0) {
-      type = "night";
-    }
-
-    if (!type) return;
-
-    const groups = await sock.groupFetchAllParticipating();
-
-    for (const jid of Object.keys(groups)) {
-      const key = `${jid}-${getDate()}-${type}`;
-
-      if (autoSent.has(key)) continue;
-
-      autoSent.set(key, true);
-
-      if (type === "morning") {
-        await sock.sendMessage(jid, {
-          text: `
-╭━━〔 🌅 GOOD MORNING 〕━━╮
-
-☀️ සුභ උදෑසනක් හැමෝටම! ❤️
-
-✨ අද දවස සතුටින්
-💪 ශක්තියෙන්
-🔥 ජයග්‍රහණයෙන් පිරුණු
-දවසක් වේවා!
-
-👑 ${BOT} 🇱🇰
-`
-        });
-      }
-
-      if (type === "night") {
-        await sock.sendMessage(jid, {
-          text: `
-╭━━〔 🌙 GOOD NIGHT 〕━━╮
-
-🌙 සුභ රාත්‍රියක් හැමෝටම! ❤️
-
-😴 හොඳින් නිදාගන්න.
-✨ හෙට අලුත් දවසක්!
-
-👑 ${BOT} 🇱🇰
-`
-        });
-      }
-    }
-  } catch (e) {
-    console.error("AUTO GREETING:", e.message);
-  }
-}
-
-/* =========================================================
-   SIMPLE COMMANDS
-========================================================= */
-
-async function simpleCommand(sock, jid, quoted, command) {
-  const replies = {
-    morning: `
-🌅 Good Morning! ❤️
-
-සුභ උදෑසනක්! 🇱🇰
-අද දවස සාර්ථක දවසක් වේවා! 🔥
-`,
-
-    night: `
-🌙 Good Night! ❤️
-
-සුභ රාත්‍රියක්! 😴
-හෙට තවත් ලස්සන දවසක්! ✨
-`,
-
-    respect:
-      "❤️ Respect everyone. Stay kind! 🤝",
-
-    friend:
-      "🤝 Friends forever! ❤️🔥",
-
-    joke:
-      "😂 Teacher: Homework කළාද?\nStudent: Sir, WiFi තිබුණේ නෑ. 😭😂",
-
-    quote:
-      "💡 Small steps every day become big results. 🔥",
-
-    fact:
-      "🧠 Fact: Octopus එකකට hearts 3ක් තියෙනවා. 🐙❤️",
-
-    motivate:
-      "🔥 Don't give up! අද අමාරු වුණත් හෙට ජයග්‍රහණයක් වෙන්න පුළුවන්. 💪"
-  };
-
-  return sock.sendMessage(
-    jid,
-    {
-      text: replies[command]
-    },
-    { quoted }
-  );
-}
-
-/* =========================================================
-   BOT INFO
-========================================================= */
-
-async function botInfo(sock, jid, quoted) {
-  const uptime = process.uptime();
-
-  return sock.sendMessage(
-    jid,
-    {
-      text: `
-╭━━〔 🤖 BOT INFORMATION 〕━━╮
-
-👑 Bot : ${BOT}
-🟢 Status : ONLINE
-⚡ Prefix : ${PREFIX}
-🌐 Platform : Render
-📅 Date : ${getDate()}
-🕐 Time : ${getTime()}
-
-⏳ Uptime :
-${Math.floor(uptime / 3600)}h ${Math.floor(
-        (uptime % 3600) / 60
-      )}m ${Math.floor(uptime % 60)}s
-
-🇱🇰 Sri Lankan WhatsApp Bot
-
-╰━━━━━━━━━━━━━━━━━━━━━━╯
-`
-    },
-    { quoted }
-  );
-}
-
-/* =========================================================
-   START BOT
-========================================================= */
-
-async function startBot() {
-  const {
-    state,
-    saveCreds
-  } = await useMultiFileAuthState(AUTH_DIR);
+  const { state, saveCreds } =
+    await useMultiFileAuthState(AUTH_DIR);
 
   const sock = makeWASocket({
     auth: state,
-    logger,
+
+    logger: P({
+      level: "silent"
+    }),
+
     browser: Browsers.macOS("Chrome"),
-    markOnlineOnConnect: true,
-    syncFullHistory: false,
-    generateHighQualityLinkPreview: true
+
+    printQRInTerminal: false,
+
+    markOnlineOnConnect: false,
+
+    syncFullHistory: false
   });
+
+  // =========================
+  // SAVE AUTH
+  // =========================
 
   sock.ev.on("creds.update", saveCreds);
 
-  /* =======================================================
-     CONNECTION
-  ======================================================= */
+  // =========================
+  // PAIRING CODE
+  // =========================
+
+  if (!state.creds.registered && PHONE_NUMBER) {
+    setTimeout(async () => {
+      try {
+        const number = PHONE_NUMBER
+          .replace(/\+/g, "")
+          .replace(/ /g, "")
+          .replace(/-/g, "");
+
+        const code = await sock.requestPairingCode(number);
+
+        console.log("");
+        console.log("╔════════════════════════════╗");
+        console.log("║       MALIYA-X 🇱🇰         ║");
+        console.log("║                            ║");
+        console.log("║ PAIRING CODE:              ║");
+        console.log(`║ ${code}                   ║`);
+        console.log("╚════════════════════════════╝");
+        console.log("");
+      } catch (error) {
+        console.log("❌ Pairing code error:", error.message);
+      }
+    }, 4000);
+  }
+
+  // =========================
+  // CONNECTION
+  // =========================
 
   sock.ev.on(
     "connection.update",
-    async ({
-      connection,
-      lastDisconnect
-    }) => {
+    async ({ connection, lastDisconnect }) => {
       if (connection === "open") {
-        console.log(`
-╭━━〔 👑 ${BOT} 〕━━╮
-┃ ✅ WhatsApp Connected
-┃ 🟢 Status : ONLINE
-┃ 📅 ${getDate()}
-┃ 🕐 ${getTime()}
-┃ 🌐 Render
-╰━━━━━━━━━━━━━━━━━━━━━━╯
-`);
+        reconnecting = false;
 
-        try {
-          if (OWNER) {
-            await sock.sendMessage(
-              `${OWNER}@s.whatsapp.net`,
-              {
-                text: `
-╭━━〔 👑 ${BOT} 〕━━╮
-┃ ✅ WhatsApp Bot Connected!
-┃ 🟢 Status : ONLINE
-┃ 🤖 Bot : ${BOT}
-┃ 📅 Date : ${getDate()}
-┃ 🕐 Time : ${getTime()}
-┃ 🌐 Platform : Render
-╰━━━━━━━━━━━━━━━━━━━━━━╯
-
-🔥 Bot එක දැන් වැඩ!
-🚀 Commands ready!
-
-Type:
-.menu
-
-👑 Powered by ${BOT} 🇱🇰
-`
-              }
-            );
-          }
-        } catch (e) {
-          console.error(
-            "Owner message:",
-            e.message
-          );
-        }
+        console.log("");
+        console.log("╔══════════════════════════════╗");
+        console.log("║       MALIYA-X 🇱🇰           ║");
+        console.log("║                              ║");
+        console.log("║      CONNECTED SUCCESSFULLY  ║");
+        console.log("╚══════════════════════════════╝");
+        console.log("");
       }
 
       if (connection === "close") {
-        const code =
-          lastDisconnect?.error?.output
-            ?.statusCode ||
-          lastDisconnect?.error?.statusCode;
+        const statusCode =
+          lastDisconnect?.error?.output?.statusCode;
 
-        if (code !== DisconnectReason.loggedOut) {
-          console.log(
-            "🔄 Connection closed. Reconnecting..."
-          );
+        const shouldReconnect =
+          statusCode !== DisconnectReason.loggedOut;
 
-          setTimeout(startBot, 5000);
+        console.log(
+          "❌ Connection closed:",
+          statusCode || "unknown"
+        );
+
+        if (shouldReconnect) {
+          reconnecting = true;
+
+          setTimeout(() => {
+            startMaliya().catch(console.error);
+          }, 5000);
         } else {
           console.log(
-            "🚪 WhatsApp logged out."
+            "⚠️ WhatsApp logged out. Delete auth_info and pair again."
           );
         }
       }
     }
   );
 
-  /* =======================================================
-     PAIRING CODE
-  ======================================================= */
-
-  if (!state.creds.registered && PHONE) {
-    setTimeout(async () => {
-      try {
-        const code =
-          await sock.requestPairingCode(PHONE);
-
-        console.log(`
-╭━━〔 🔐 PAIRING CODE 〕━━╮
-┃ ${code}
-╰━━━━━━━━━━━━━━━━━━━━━━╯
-`);
-      } catch (e) {
-        console.error(
-          "PAIRING ERROR:",
-          e.message
-        );
-      }
-    }, 5000);
-  }
-
-  /* =======================================================
-     WELCOME / GOODBYE
-  ======================================================= */
+  // =========================
+  // GROUP PARTICIPANTS
+  // =========================
 
   sock.ev.on(
     "group-participants.update",
-    async update => {
+    async anu => {
       try {
-        const group =
-          await sock.groupMetadata(update.id);
+        const jid = anu.id;
 
-        for (const participant of update.participants || []) {
-          const jid = participant;
-          const number = getNumber(participant);
+        const metadata =
+          await sock.groupMetadata(jid);
 
-          if (update.action === "add") {
-            await sock.sendMessage(update.id, {
-              text: `
-╭━━〔 👋 WELCOME 〕━━╮
+        for (const participant of anu.participants) {
+          const number = cleanNumber(participant);
 
-🎉 Welcome @${number}!
+          if (anu.action === "add") {
+            const text = `
+╭━━━〔 👋 WELCOME 〕━━━╮
 
-🏠 Group : ${group.subject}
-📅 Date : ${getDate()}
-🕐 Time : ${getTime()}
+👤 Welcome @${number}
 
-❤️ අපේ group එකට සාදරයෙන් පිළිගන්නවා!
+🏠 Group:
+${metadata.subject}
 
-👑 ${BOT} 🇱🇰
-`,
-              mentions: [jid]
-            });
+📅 Date: ${formatDate()}
+🕐 Time: ${formatTime()}
+
+🇱🇰 Enjoy the group!
+
+╰━━━━━━━━━━━━━━━━━━━━╯
+
+> Powered by ${BOT_NAME}
+`;
+
+            await sock.sendMessage(
+              jid,
+              {
+                text,
+                mentions: [participant]
+              }
+            );
           }
 
-          if (update.action === "remove") {
-            await sock.sendMessage(update.id, {
-              text: `
-👋 @${number} group එකෙන් ඉවත් වුණා.
+          if (
+            anu.action === "remove" ||
+            anu.action === "leave"
+          ) {
+            const text = `
+╭━━━〔 👋 GOODBYE 〕━━━╮
 
-💔 අපිව මතක් වෙයි!
-👑 ${BOT} 🇱🇰
-`,
-              mentions: [jid]
-            });
+👤 @${number} left the group.
+
+🏠 Group:
+${metadata.subject}
+
+📅 ${formatDate()}
+🕐 ${formatTime()}
+
+╰━━━━━━━━━━━━━━━━━━━━╯
+`;
+
+            await sock.sendMessage(
+              jid,
+              {
+                text,
+                mentions: [participant]
+              }
+            );
           }
         }
-      } catch (e) {
-        console.error(
-          "GROUP UPDATE:",
-          e.message
+      } catch (error) {
+        console.log(
+          "Group participant error:",
+          error.message
         );
       }
     }
   );
 
-  /* =======================================================
-     MESSAGE HANDLER
-  ======================================================= */
+  // =========================
+  // MESSAGES
+  // =========================
 
   sock.ev.on(
     "messages.upsert",
     async ({ messages }) => {
-      const message = messages?.[0];
-
-      if (!message) return;
-
-      /*
-        IMPORTANT:
-        fromMe commands are NOT ignored.
-        ඒ නිසා Bot number එකෙන්ම .ping/.menu test
-        කරන්න පුළුවන්.
-      */
-
       try {
-        const jid =
-          message.key.remoteJid;
+        const m = messages[0];
 
-        const body =
-          getText(message);
+        if (!m || !m.message) return;
 
-        if (!jid || !body) return;
+        /*
+         * IMPORTANT:
+         * Do NOT use:
+         *
+         * if(m.key.fromMe)return;
+         *
+         * because Message Yourself testing can be ignored.
+         *
+         * We only ignore protocol/status messages.
+         */
 
-        const lower =
-          body.toLowerCase().trim();
+        const remoteJid = m.key.remoteJid;
 
-        /* =================================================
-           NUMBER MENU
-        ================================================= */
+        if (!remoteJid) return;
 
         if (
-          /^[1-8]$/.test(lower) &&
-          menus.has(jid)
+          remoteJid === "status@broadcast"
         ) {
-          const created =
-            menus.get(jid);
-
-          if (
-            Date.now() - created <
-            10 * 60 * 1000
-          ) {
-            menus.set(jid, Date.now());
-
-            return sock.sendMessage(
-              jid,
-              {
-                text:
-                  subMenus[Number(lower)]
-              },
-              {
-                quoted: message
-              }
-            );
-          }
-        }
-
-        /* =================================================
-           PREFIX
-        ================================================= */
-
-        if (!lower.startsWith(PREFIX)) {
           return;
         }
 
-        const parts =
-          body.trim().split(/\s+/);
+        const message = m.message;
 
-        const command =
-          parts[0]
-            .slice(PREFIX.length)
-            .toLowerCase();
+        const text = getText(message).trim();
 
-        const args =
-          parts.slice(1).join(" ");
+        if (!text) return;
 
-        /* =================================================
-           COMMANDS
-        ================================================= */
+        const lowerText = text.toLowerCase();
 
-        switch (command) {
-          case "menu":
-          case "help":
-          case "start":
-            return sendMenu(
-              sock,
-              jid,
-              message
-            );
+        const isCommand =
+          lowerText.startsWith(PREFIX);
 
-          case "ping":
-            return ping(
-              sock,
-              jid,
-              message
-            );
+        if (!isCommand) return;
 
-          case "time":
-            return sendTime(
-              sock,
-              jid,
-              message
-            );
+        const parts = text.slice(PREFIX.length)
+          .trim()
+          .split(/\s+/);
 
-          case "song":
-          case "audio":
-            return song(
-              sock,
-              jid,
-              message,
-              args
-            );
+        const cmd =
+          (parts.shift() || "").toLowerCase();
 
-          case "video":
-          case "ytdl":
-            return video(
-              sock,
-              jid,
-              message,
-              args
-            );
+        const args = parts.join(" ").trim();
 
-          case "social":
-          case "dl":
-            return social(
-              sock,
-              jid,
-              message,
-              args
-            );
+        const sender =
+          m.key.participant ||
+          m.key.remoteJid;
 
-          case "sticker":
-          case "s":
-            return sticker(
-              sock,
-              jid,
-              message
-            );
+        const senderNumber =
+          cleanNumber(sender);
 
-          case "ai":
-            return ai(
-              sock,
-              jid,
-              message,
-              args
-            );
+        const botNumber =
+          cleanNumber(sock.user?.id || "");
 
-          case "groupinfo":
-            return groupInfo(
-              sock,
-              jid,
-              message
-            );
+        const ownerNumber =
+          cleanNumber(OWNER_NUMBER);
 
-          case "admins":
-            return admins(
-              sock,
-              jid,
-              message
-            );
+        const group =
+          isGroup(remoteJid);
 
-          case "tagall":
-            return tagAll(
-              sock,
-              jid,
-              message
-            );
+        const quoted =
+          getQuotedMessage(message);
 
-          case "promote":
-            return groupAction(
-              sock,
-              jid,
-              message,
-              "promote"
-            );
+        const mentioned =
+          getMentioned(message);
 
-          case "demote":
-            return groupAction(
-              sock,
-              jid,
-              message,
-              "demote"
-            );
+        console.log(
+          `[CMD] ${cmd} | ${senderNumber} | ${
+            group ? "GROUP" : "PRIVATE"
+          }`
+        );
 
-          case "kick":
-          case "remove":
-            return groupAction(
-              sock,
-              jid,
-              message,
-              "remove"
-            );
+        // =========================
+        // PING
+        // =========================
 
-          case "morning":
-            return simpleCommand(
-              sock,
-              jid,
-              message,
-              "morning"
-            );
+        if (cmd === "ping") {
+          const start = Date.now();
 
-          case "night":
-            return simpleCommand(
-              sock,
-              jid,
-              message,
-              "night"
-            );
+          await sendText(
+            sock,
+            remoteJid,
+            "🏓 Checking...",
+            m
+          );
 
-          case "respect":
-            return simpleCommand(
-              sock,
-              jid,
-              message,
-              "respect"
-            );
+          const speed = Date.now() - start;
 
-          case "friend":
-            return simpleCommand(
-              sock,
-              jid,
-              message,
-              "friend"
-            );
+          await sendText(
+            sock,
+            remoteJid,
+            `
+╭━━━〔 🏓 PONG 〕━━━╮
 
-          case "joke":
-            return simpleCommand(
-              sock,
-              jid,
-              message,
-              "joke"
-            );
+⚡ Speed: ${speed} ms
+🤖 Bot: ${BOT_NAME}
+📅 Date: ${formatDate()}
+🕐 Time: ${formatTime()}
+🟢 Status: Online
 
-          case "quote":
-            return simpleCommand(
-              sock,
-              jid,
-              message,
-              "quote"
-            );
+╰━━━━━━━━━━━━━━━━━━╯
+`,
+            m
+          );
 
-          case "fact":
-            return simpleCommand(
-              sock,
-              jid,
-              message,
-              "fact"
-            );
+          return;
+        }
 
-          case "motivate":
-            return simpleCommand(
-              sock,
-              jid,
-              message,
-              "motivate"
-            );
+        // =========================
+        // MENU
+        // =========================
 
-          case "botinfo":
-            return botInfo(
-              sock,
-              jid,
-              message
-            );
+        if (
+          cmd === "menu" ||
+          cmd === "help"
+        ) {
+          const name =
+            m.pushName || "Friend";
 
-          case "owner":
-            return sock.sendMessage(
-              jid,
-              {
-                text: `
-╭━━〔 👑 OWNER 〕━━╮
-
-👑 Owner : ${OWNER}
-🤖 Bot : ${BOT}
-
-🇱🇰 ${BOT} WhatsApp Bot
-`
+          await sock.sendMessage(
+            remoteJid,
+            {
+              image: {
+                url: MENU_IMAGE
               },
-              { quoted: message }
+              caption: menuText(name)
+            },
+            {
+              quoted: m
+            }
+          );
+
+          return;
+        }
+
+        // =========================
+        // TIME
+        // =========================
+
+        if (cmd === "time") {
+          await sendText(
+            sock,
+            remoteJid,
+            `
+🕐 *MALIYA-X TIME*
+
+📅 Date: ${formatDate()}
+⏰ Time: ${formatTime()}
+🌍 Timezone: Asia/Colombo 🇱🇰
+`,
+            m
+          );
+
+          return;
+        }
+
+        // =========================
+        // BOT INFO
+        // =========================
+
+        if (
+          cmd === "botinfo" ||
+          cmd === "info"
+        ) {
+          await sendText(
+            sock,
+            remoteJid,
+            `
+╭━━━〔 🤖 BOT INFO 〕━━━╮
+
+🤖 Name: ${BOT_NAME}
+⚡ Status: Online
+🇱🇰 Country: Sri Lanka
+📅 ${formatDate()}
+🕐 ${formatTime()}
+
+╰━━━━━━━━━━━━━━━━━━━━╯
+`,
+            m
+          );
+
+          return;
+        }
+
+        // =========================
+        // OWNER
+        // =========================
+
+        if (cmd === "owner") {
+          if (!OWNER_NUMBER) {
+            await sendText(
+              sock,
+              remoteJid,
+              "❌ Owner number is not configured.",
+              m
             );
 
-          case "restart":
+            return;
+          }
+
+          await sock.sendMessage(
+            remoteJid,
+            {
+              contacts: {
+                displayName: "MALIYA-X Owner",
+                contacts: [
+                  {
+                    vcard:
+                      `BEGIN:VCARD\n` +
+                      `VERSION:3.0\n` +
+                      `FN:MALIYA-X Owner\n` +
+                      `TEL;type=CELL;waid=${ownerNumber}:` +
+                      `+${ownerNumber}\n` +
+                      `END:VCARD`
+                  }
+                ]
+              }
+            },
+            {
+              quoted: m
+            }
+          );
+
+          return;
+        }
+
+        // =========================
+        // AI
+        // =========================
+
+        if (cmd === "ai") {
+          if (!args) {
+            await sendText(
+              sock,
+              remoteJid,
+              "🤖 Usage:\n.ai What is artificial intelligence?",
+              m
+            );
+
+            return;
+          }
+
+          await sendText(
+            sock,
+            remoteJid,
+            "🤖 AI is thinking...",
+            m
+          );
+
+          try {
+            const result = await aiAsk(args);
+
+            await sendText(
+              sock,
+              remoteJid,
+              `🤖 *MALIYA-X AI*\n\n${result}`,
+              m
+            );
+          } catch (error) {
+            await sendText(
+              sock,
+              remoteJid,
+              "❌ AI service එක මේ වෙලාවේ වැඩ කරන්නේ නැහැ.",
+              m
+            );
+          }
+
+          return;
+        }
+
+        // =========================
+        // SONG / AUDIO
+        // =========================
+
+        if (
+          cmd === "song" ||
+          cmd === "audio"
+        ) {
+          if (!args) {
+            await sendText(
+              sock,
+              remoteJid,
+              "🎵 Usage:\n.song <song name or YouTube URL>",
+              m
+            );
+
+            return;
+          }
+
+          try {
+            await sendText(
+              sock,
+              remoteJid,
+              "🔎 Song searching...",
+              m
+            );
+
+            let url = args;
+            let title = args;
+
             if (
-              getNumber(
-                message.key.participant ||
-                  message.key.remoteJid
-              ) !== OWNER
+              !/^https?:\/\//i.test(args)
             ) {
-              return;
+              const result =
+                await ytSearch(args);
+
+              if (!result.videos?.length) {
+                await sendText(
+                  sock,
+                  remoteJid,
+                  "❌ Song එක හමු වුණේ නැහැ.",
+                  m
+                );
+
+                return;
+              }
+
+              const video =
+                result.videos[0];
+
+              url = video.url;
+              title = video.title;
+            }
+
+            await sendText(
+              sock,
+              remoteJid,
+              `🎵 Found:\n${title}\n\n⬇️ Downloading audio...`,
+              m
+            );
+
+            const result =
+              await youtubeAudio(url);
+
+            const downloadUrl =
+              result?.download_url ||
+              result?.url;
+
+            if (!downloadUrl) {
+              throw new Error(
+                "No audio URL"
+              );
             }
 
             await sock.sendMessage(
-              jid,
+              remoteJid,
               {
-                text:
-                  "🔄 Bot restarting..."
+                audio: {
+                  url: downloadUrl
+                },
+                mimetype: "audio/mpeg",
+                fileName:
+                  `${title.substring(0, 80)}.mp3`
               },
-              { quoted: message }
+              {
+                quoted: m
+              }
+            );
+          } catch (error) {
+            console.log(
+              "Song error:",
+              error.message
             );
 
-            process.exit(0);
-
-          default:
-            return sock.sendMessage(
-              jid,
-              {
-                text: `
-❌ Unknown command!
-
-📌 ${PREFIX}menu
-
-උදාහරණ:
-.ping
-.song Lelena
-.video URL
-.ai hello
-`
-              },
-              { quoted: message }
+            await sendText(
+              sock,
+              remoteJid,
+              "❌ Audio download failed. වෙනත් song එකක් try කරන්න.",
+              m
             );
+          }
+
+          return;
         }
-      } catch (e) {
-        console.error(
-          "MESSAGE ERROR:",
-          e
+
+        // =========================
+        // VIDEO / YTDL
+        // =========================
+
+        if (
+          cmd === "video" ||
+          cmd === "ytdl"
+        ) {
+          if (!args) {
+            await sendText(
+              sock,
+              remoteJid,
+              "🎬 Usage:\n.video <video name or YouTube URL>",
+              m
+            );
+
+            return;
+          }
+
+          try {
+            await sendText(
+              sock,
+              remoteJid,
+              "🔎 Video searching...",
+              m
+            );
+
+            let url = args;
+            let title = args;
+
+            if (
+              !/^https?:\/\//i.test(args)
+            ) {
+              const result =
+                await ytSearch(args);
+
+              if (!result.videos?.length) {
+                await sendText(
+                  sock,
+                  remoteJid,
+                  "❌ Video එක හමු වුණේ නැහැ.",
+                  m
+                );
+
+                return;
+              }
+
+              const video =
+                result.videos[0];
+
+              url = video.url;
+              title = video.title;
+            }
+
+            await sendText(
+              sock,
+              remoteJid,
+              `🎬 Found:\n${title}\n\n⬇️ Downloading video...`,
+              m
+            );
+
+            const result =
+              await youtubeVideo(url);
+
+            const downloadUrl =
+              result?.download_url ||
+              result?.url;
+
+            if (!downloadUrl) {
+              throw new Error(
+                "No video URL"
+              );
+            }
+
+            await sock.sendMessage(
+              remoteJid,
+              {
+                video: {
+                  url: downloadUrl
+                },
+                caption:
+                  `🎬 ${title}\n\n> ${BOT_NAME}`
+              },
+              {
+                quoted: m
+              }
+            );
+          } catch (error) {
+            console.log(
+              "Video error:",
+              error.message
+            );
+
+            await sendText(
+              sock,
+              remoteJid,
+              "❌ Video download failed.",
+              m
+            );
+          }
+
+          return;
+        }
+
+        // =========================
+        // SOCIAL DOWNLOADER
+        // =========================
+
+        if (
+          cmd === "social" ||
+          cmd === "dl"
+        ) {
+          if (!args) {
+            await sendText(
+              sock,
+              remoteJid,
+              "📥 Usage:\n.social <TikTok / Instagram / Facebook URL>",
+              m
+            );
+
+            return;
+          }
+
+          try {
+            await sendText(
+              sock,
+              remoteJid,
+              "📥 Downloading...",
+              m
+            );
+
+            const result =
+              await socialDownload(args);
+
+            const mediaUrl =
+              result?.download_url ||
+              result?.url ||
+              result?.video ||
+              result?.media;
+
+            if (!mediaUrl) {
+              throw new Error(
+                "No media URL"
+              );
+            }
+
+            await sock.sendMessage(
+              remoteJid,
+              {
+                video: {
+                  url: mediaUrl
+                },
+                caption:
+                  `📥 Social Downloader\n\n> ${BOT_NAME}`
+              },
+              {
+                quoted: m
+              }
+            );
+          } catch (error) {
+            console.log(
+              "Social error:",
+              error.message
+            );
+
+            await sendText(
+              sock,
+              remoteJid,
+              "❌ Social media download failed.",
+              m
+            );
+          }
+
+          return;
+        }
+
+        // =========================
+        // STICKER
+        // =========================
+
+        if (
+          cmd === "sticker" ||
+          cmd === "s"
+        ) {
+          let imageMessage = null;
+
+          if (message.imageMessage) {
+            imageMessage =
+              message.imageMessage;
+          }
+
+          if (
+            quoted?.imageMessage
+          ) {
+            imageMessage =
+              quoted.imageMessage;
+          }
+
+          if (!imageMessage) {
+            await sendText(
+              sock,
+              remoteJid,
+              "🖼️ Image එකක් send කරලා `.sticker` කියන්න, නැත්නම් image එකකට reply කරලා `.sticker` කියන්න.",
+              m
+            );
+
+            return;
+          }
+
+          try {
+            const buffer =
+              await downloadMedia(
+                imageMessage,
+                "image"
+              );
+
+            await sock.sendMessage(
+              remoteJid,
+              {
+                sticker: buffer
+              },
+              {
+                quoted: m
+              }
+            );
+          } catch (error) {
+            console.log(
+              "Sticker error:",
+              error.message
+            );
+
+            await sendText(
+              sock,
+              remoteJid,
+              "❌ Sticker create කරන්න බැරි වුණා.",
+              m
+            );
+          }
+
+          return;
+        }
+
+        // =========================
+        // GROUP INFO
+        // =========================
+
+        if (cmd === "groupinfo") {
+          if (!group) {
+            await sendText(
+              sock,
+              remoteJid,
+              "❌ මේ command එක group එකක විතරයි.",
+              m
+            );
+
+            return;
+          }
+
+          try {
+            const metadata =
+              await sock.groupMetadata(
+                remoteJid
+              );
+
+            const admins =
+              metadata.participants.filter(
+                p => p.admin
+              ).length;
+
+            await sendText(
+              sock,
+              remoteJid,
+              `
+╭━━━〔 👥 GROUP INFO 〕━━━╮
+
+🏠 Name:
+${metadata.subject}
+
+👥 Members:
+${metadata.participants.length}
+
+👑 Admins:
+${admins}
+
+🆔 Group ID:
+${remoteJid}
+
+📅 ${formatDate()}
+🕐 ${formatTime()}
+
+╰━━━━━━━━━━━━━━━━━━━━━━╯
+`,
+              m
+            );
+          } catch {
+            await sendText(
+              sock,
+              remoteJid,
+              "❌ Group info ලබාගන්න බැරි වුණා.",
+              m
+            );
+          }
+
+          return;
+        }
+
+        // =========================
+        // TAG ALL
+        // =========================
+
+        if (cmd === "tagall") {
+          if (!group) {
+            await sendText(
+              sock,
+              remoteJid,
+              "❌ Group එකක විතරක් use කරන්න.",
+              m
+            );
+
+            return;
+          }
+
+          const metadata =
+            await sock.groupMetadata(
+              remoteJid
+            );
+
+          const participants =
+            metadata.participants;
+
+          let text =
+            `╭━━━〔 📢 TAG ALL 〕━━━╮\n\n`;
+
+          const mentions = [];
+
+          for (const participant of participants) {
+            const jid = participant.id;
+
+            mentions.push(jid);
+
+            text += `👤 @${cleanNumber(jid)}\n`;
+          }
+
+          text +=
+            `\n╰━━━━━━━━━━━━━━━━━━╯`;
+
+          await sock.sendMessage(
+            remoteJid,
+            {
+              text,
+              mentions
+            },
+            {
+              quoted: m
+            }
+          );
+
+          return;
+        }
+
+        // =========================
+        // MUTE GROUP
+        // =========================
+
+        if (cmd === "mute") {
+          if (!group) {
+            await sendText(
+              sock,
+              remoteJid,
+              "❌ Group එකක use කරන්න.",
+              m
+            );
+
+            return;
+          }
+
+          if (
+            !(await isAdmin(
+              sock,
+              remoteJid,
+              sender
+            ))
+          ) {
+            await sendText(
+              sock,
+              remoteJid,
+              "❌ Admins only.",
+              m
+            );
+
+            return;
+          }
+
+          if (
+            !(await isBotAdmin(
+              sock,
+              remoteJid
+            ))
+          ) {
+            await sendText(
+              sock,
+              remoteJid,
+              "❌ Bot must be group admin.",
+              m
+            );
+
+            return;
+          }
+
+          try {
+            await sock.groupSettingUpdate(
+              remoteJid,
+              "announcement"
+            );
+
+            await sendText(
+              sock,
+              remoteJid,
+              "🔒 Group muted. Only admins can send messages.",
+              m
+            );
+          } catch {
+            await sendText(
+              sock,
+              remoteJid,
+              "❌ Group mute කරන්න බැරි වුණා.",
+              m
+            );
+          }
+
+          return;
+        }
+
+        // =========================
+        // UNMUTE
+        // =========================
+
+        if (cmd === "unmute") {
+          if (!group) {
+            await sendText(
+              sock,
+              remoteJid,
+              "❌ Group එකක use කරන්න.",
+              m
+            );
+
+            return;
+          }
+
+          if (
+            !(await isAdmin(
+              sock,
+              remoteJid,
+              sender
+            ))
+          ) {
+            await sendText(
+              sock,
+              remoteJid,
+              "❌ Admins only.",
+              m
+            );
+
+            return;
+          }
+
+          if (
+            !(await isBotAdmin(
+              sock,
+              remoteJid
+            ))
+          ) {
+            await sendText(
+              sock,
+              remoteJid,
+              "❌ Bot must be group admin.",
+              m
+            );
+
+            return;
+          }
+
+          try {
+            await sock.groupSettingUpdate(
+              remoteJid,
+              "not_announcement"
+            );
+
+            await sendText(
+              sock,
+              remoteJid,
+              "🔓 Group unmuted.",
+              m
+            );
+          } catch {
+            await sendText(
+              sock,
+              remoteJid,
+              "❌ Group unmute කරන්න බැරි වුණා.",
+              m
+            );
+          }
+
+          return;
+        }
+
+        // =========================
+        // RANDOM COMMANDS
+        // =========================
+
+        if (cmd === "joke") {
+          await sendText(
+            sock,
+            remoteJid,
+            jokes[
+              Math.floor(
+                Math.random() * jokes.length
+              )
+            ],
+            m
+          );
+
+          return;
+        }
+
+        if (cmd === "fact") {
+          await sendText(
+            sock,
+            remoteJid,
+            facts[
+              Math.floor(
+                Math.random() * facts.length
+              )
+            ],
+            m
+          );
+
+          return;
+        }
+
+        if (cmd === "quote") {
+          await sendText(
+            sock,
+            remoteJid,
+            quotes[
+              Math.floor(
+                Math.random() * quotes.length
+              )
+            ],
+            m
+          );
+
+          return;
+        }
+
+        if (cmd === "motivate") {
+          await sendText(
+            sock,
+            remoteJid,
+            motivations[
+              Math.floor(
+                Math.random() *
+                  motivations.length
+              )
+            ],
+            m
+          );
+
+          return;
+        }
+
+        if (cmd === "challenge") {
+          await sendText(
+            sock,
+            remoteJid,
+            challenges[
+              Math.floor(
+                Math.random() *
+                  challenges.length
+              )
+            ],
+            m
+          );
+
+          return;
+        }
+
+        if (cmd === "life") {
+          await sendText(
+            sock,
+            remoteJid,
+            lifeReplies[
+              Math.floor(
+                Math.random() *
+                  lifeReplies.length
+              )
+            ],
+            m
+          );
+
+          return;
+        }
+
+        // =========================
+        // UNKNOWN COMMAND
+        // =========================
+
+        await sendText(
+          sock,
+          remoteJid,
+          `❌ Unknown command: .${cmd}\n\n📋 Type *.menu* to see available commands.`,
+          m
+        );
+
+      } catch (error) {
+        console.log(
+          "Message handler error:",
+          error
         );
       }
     }
   );
-
-  /* =======================================================
-     AUTO GREETING CHECK
-  ======================================================= */
-
-  setInterval(() => {
-    autoGreetings(sock);
-  }, 60000);
 }
 
-/* =========================================================
-   START
-========================================================= */
+// =========================
+// CREATE AUTH DIRECTORY
+// =========================
 
-startBot().catch(error => {
+if (!fs.existsSync(AUTH_DIR)) {
+  fs.mkdirSync(AUTH_DIR, {
+    recursive: true
+  });
+}
+
+// =========================
+// START
+// =========================
+
+console.log("");
+console.log("╔══════════════════════════════╗");
+console.log("║       MALIYA-X 🇱🇰           ║");
+console.log("║                              ║");
+console.log("║        STARTING BOT...       ║");
+console.log("╚══════════════════════════════╝");
+console.log("");
+
+startMaliya().catch(error => {
   console.error(
-    "FATAL ERROR:",
+    "❌ Fatal startup error:",
     error
-  );
-
-  setTimeout(
-    startBot,
-    5000
   );
 });
