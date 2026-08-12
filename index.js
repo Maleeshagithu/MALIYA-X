@@ -1,8 +1,8 @@
 /**
  * MALIYA-X V2 - WhatsApp Bot
- * Complete Production Source Code with Express Server, Image Menus, Interactive Buttons, 
- * Working YouTube Thumbnails/Downloads, Sticker Maker, HD Quality Selectors, 
- * Advanced NSFW List, Auto Greetings, & DP Welcomes.
+ * Complete Production Source Code with Express Server, Connection Notification Message, 
+ * Image Menus, Interactive Buttons, Working YouTube Thumbnails/Downloads, Sticker Maker, 
+ * HD Quality Selectors, Advanced NSFW List, Auto Greetings, & DP Welcomes.
  */
 
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
@@ -31,11 +31,25 @@ async function startMaliyaX() {
         printQRInTerminal: true
     });
 
-    // 1. Bot Connected Notification
+    // 1. Bot Connected Notification & WhatsApp Owner/Bot Number Message Alert
     sock.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect } = update;
         if (connection === 'open') {
             console.log('✅ MALIYA-X V2 Connected Successfully! 🇱🇰🔥');
+            
+            // Send connection message to the bot's own chat or owner number once connected
+            try {
+                const botNumber = sock.user.id.split(':')[0] + '@s.whatsapp.net';
+                const connectedMsg = `🚀 *MALIYA-X V2 Bot Connected Successfully!* 🇱🇰🔥\n\n` +
+                    `Status: Online & Ready ✅\n` +
+                    `Version: v2.0.0\n` +
+                    `All features, menus, and NSFW commands are loaded and active! ツ`;
+                
+                await sock.sendMessage(botNumber, { text: connectedMsg });
+            } catch (err) {
+                console.error('Failed to send connection message:', err);
+            }
+
         } else if (connection === 'close') {
             const shouldReconnect = (lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut);
             console.log('Connection closed, reconnecting...', shouldReconnect);
