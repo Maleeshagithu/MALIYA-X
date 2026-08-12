@@ -3,8 +3,7 @@ const {
   useMultiFileAuthState,
   DisconnectReason,
   Browsers,
-  fetchLatestBaileysVersion,
-  downloadContentFromMessage
+  downloadContentFromMessage,
 } = require("@whiskeysockets/baileys");
 
 const P = require("pino");
@@ -20,25 +19,25 @@ const AUTH_DIR = "./auth_info";
 const PHONE_NUMBER = (process.env.PHONE_NUMBER || "").replace(/\D/g, "");
 const OWNER_NUMBER = (process.env.OWNER_NUMBER || "").replace(/\D/g, "");
 
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT || 3000);
 
 const logger = P({ level: "silent" });
 
-/* =========================
-   RENDER SERVER
-========================= */
+/* =====================================================
+   RENDER WEB SERVER
+===================================================== */
 
 const app = express();
 
-app.get("/", (req, res) => {
+app.get("/", (_req, res) => {
   res.send(`${BOT_NAME} is running successfully!`);
 });
 
-app.get("/health", (req, res) => {
+app.get("/health", (_req, res) => {
   res.json({
     bot: BOT_NAME,
     status: "online",
-    time: new Date().toISOString()
+    time: new Date().toISOString(),
   });
 });
 
@@ -50,11 +49,12 @@ if (!fs.existsSync(AUTH_DIR)) {
   fs.mkdirSync(AUTH_DIR, { recursive: true });
 }
 
-/* =========================
+/* =====================================================
    HELPERS
-========================= */
+===================================================== */
 
-const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+const sleep = (ms) =>
+  new Promise((resolve) => setTimeout(resolve, ms));
 
 function cleanNumber(jid) {
   return String(jid || "")
@@ -68,14 +68,14 @@ function isGroup(jid) {
 
 function getDate() {
   return new Date().toLocaleDateString("en-GB", {
-    timeZone: "Asia/Colombo"
+    timeZone: "Asia/Colombo",
   });
 }
 
 function getTime() {
   return new Date().toLocaleTimeString("en-US", {
     timeZone: "Asia/Colombo",
-    hour12: true
+    hour12: true,
   });
 }
 
@@ -96,7 +96,10 @@ function getText(message) {
 }
 
 function getQuoted(message) {
-  return message?.extendedTextMessage?.contextInfo?.quotedMessage || null;
+  return (
+    message?.extendedTextMessage?.contextInfo?.quotedMessage ||
+    null
+  );
 }
 
 async function sendText(sock, jid, text, quoted) {
@@ -107,12 +110,11 @@ async function sendText(sock, jid, text, quoted) {
   );
 }
 
-/* =========================
-   CLICK MENU
-========================= */
+/* =====================================================
+   MAIN MENU
+===================================================== */
 
 async function sendMainMenu(sock, jid, quoted, name) {
-
   const text = `
 ╭━━━〔 ${BOT_NAME} 〕━━━╮
 ┃
@@ -121,23 +123,23 @@ async function sendMainMenu(sock, jid, quoted, name) {
 ┃
 ╰━━━━━━━━━━━━━━━━━━━━╯
 
-👇 පහළින් option එකක් select කරන්න.
+👇 MENU OPTION එකක් තෝරන්න.
 
 🎵 1. Song / Audio
 🎬 2. Video
 🤖 3. AI
 🖼️ 4. Sticker
 📥 5. Social Download
-👥 6. Group
+👥 6. Group Menu
 👑 7. Owner
-🤖 8. Bot Info
+ℹ️ 8. Bot Info
 😂 9. Fun
 
-📌 Number එක reply කළත් වැඩ කරනවා.
+📌 Button එකක් click කරන්න
+හෝ number එක reply කරන්න.
 `;
 
   try {
-
     await sock.sendMessage(
       jid,
       {
@@ -146,39 +148,45 @@ async function sendMainMenu(sock, jid, quoted, name) {
         buttons: [
           {
             buttonId: "menu_1",
-            buttonText: { displayText: "🎵 Song" },
-            type: 1
+            buttonText: {
+              displayText: "🎵 Song",
+            },
+            type: 1,
           },
           {
             buttonId: "menu_2",
-            buttonText: { displayText: "🎬 Video" },
-            type: 1
+            buttonText: {
+              displayText: "🎬 Video",
+            },
+            type: 1,
           },
           {
             buttonId: "menu_3",
-            buttonText: { displayText: "🤖 AI" },
-            type: 1
-          }
+            buttonText: {
+              displayText: "🤖 AI",
+            },
+            type: 1,
+          },
         ],
-        headerType: 1
+        headerType: 1,
       },
       { quoted }
     );
-
   } catch (error) {
-
-    console.log("Interactive menu fallback:", error.message);
+    console.log(
+      "Menu button fallback:",
+      error?.message || error
+    );
 
     await sendText(sock, jid, text, quoted);
   }
 }
 
-/* =========================
-   SUB MENU
-========================= */
+/* =====================================================
+   GROUP MENU
+===================================================== */
 
 async function sendGroupMenu(sock, jid, quoted) {
-
   const text = `
 ╭━━━〔 👥 GROUP MENU 〕━━━╮
 
@@ -191,7 +199,6 @@ async function sendGroupMenu(sock, jid, quoted) {
 `;
 
   try {
-
     await sock.sendMessage(
       jid,
       {
@@ -200,36 +207,40 @@ async function sendGroupMenu(sock, jid, quoted) {
         buttons: [
           {
             buttonId: "group_info",
-            buttonText: { displayText: "👥 Group Info" },
-            type: 1
+            buttonText: {
+              displayText: "👥 Group Info",
+            },
+            type: 1,
           },
           {
             buttonId: "group_tagall",
-            buttonText: { displayText: "📢 Tag All" },
-            type: 1
+            buttonText: {
+              displayText: "📢 Tag All",
+            },
+            type: 1,
           },
           {
             buttonId: "group_mute",
-            buttonText: { displayText: "🔒 Mute" },
-            type: 1
-          }
+            buttonText: {
+              displayText: "🔒 Mute",
+            },
+            type: 1,
+          },
         ],
-        headerType: 1
+        headerType: 1,
       },
       { quoted }
     );
-
   } catch {
     await sendText(sock, jid, text, quoted);
   }
 }
 
-/* =========================
-   DOWNLOAD MEDIA
-========================= */
+/* =====================================================
+   MEDIA
+===================================================== */
 
 async function downloadMedia(message, type) {
-
   const stream = await downloadContentFromMessage(
     message,
     type
@@ -244,12 +255,11 @@ async function downloadMedia(message, type) {
   return Buffer.concat(chunks);
 }
 
-/* =========================
+/* =====================================================
    GROUP HELPERS
-========================= */
+===================================================== */
 
 async function getGroupMetadata(sock, jid) {
-
   try {
     return await sock.groupMetadata(jid);
   } catch {
@@ -258,22 +268,26 @@ async function getGroupMetadata(sock, jid) {
 }
 
 async function isAdmin(sock, jid, user) {
-
-  const metadata = await getGroupMetadata(sock, jid);
+  const metadata = await getGroupMetadata(
+    sock,
+    jid
+  );
 
   if (!metadata) return false;
 
   const participant =
     metadata.participants.find(
-      p => cleanNumber(p.id) === cleanNumber(user)
+      (p) =>
+        cleanNumber(p.id) ===
+        cleanNumber(user)
     );
 
   return !!participant?.admin;
 }
 
 async function isBotAdmin(sock, jid) {
-
-  const metadata = await getGroupMetadata(sock, jid);
+  const metadata =
+    await getGroupMetadata(sock, jid);
 
   if (!metadata || !sock.user?.id) {
     return false;
@@ -281,106 +295,83 @@ async function isBotAdmin(sock, jid) {
 
   const participant =
     metadata.participants.find(
-      p => cleanNumber(p.id) === cleanNumber(sock.user.id)
+      (p) =>
+        cleanNumber(p.id) ===
+        cleanNumber(sock.user.id)
     );
 
   return !!participant?.admin;
 }
 
-/* =========================
-   API HELPERS
-========================= */
+/* =====================================================
+   API
+===================================================== */
 
 async function apiGet(url) {
-
   const response = await axios.get(url, {
-    timeout: 60000
+    timeout: 60000,
   });
 
-  return response.data?.result || response.data;
+  return (
+    response.data?.result ||
+    response.data
+  );
 }
 
 async function aiRequest(query) {
-
   return apiGet(
     "https://apis.davidcyriltech.my.id/ai/gemini?query=" +
-    encodeURIComponent(query)
+      encodeURIComponent(query)
   );
 }
 
 async function audioDownload(url) {
-
   return apiGet(
     "https://apis.davidcyriltech.my.id/download/ytmp3?url=" +
-    encodeURIComponent(url)
+      encodeURIComponent(url)
   );
 }
 
 async function videoDownload(url) {
-
   return apiGet(
     "https://apis.davidcyriltech.my.id/download/ytmp4?url=" +
-    encodeURIComponent(url)
+      encodeURIComponent(url)
   );
 }
 
 async function socialDownload(url) {
-
   return apiGet(
     "https://apis.davidcyriltech.my.id/download/all?url=" +
-    encodeURIComponent(url)
+      encodeURIComponent(url)
   );
 }
 
-/* =========================
-   START BOT
-========================= */
+/* =====================================================
+   BOT START
+===================================================== */
 
 let starting = false;
 let reconnectTimer = null;
 
 async function startMaliya() {
-
   if (starting) return;
 
   starting = true;
 
   try {
-
     const {
       state,
-      saveCreds
-    } = await useMultiFileAuthState(AUTH_DIR);
-
-    let version;
-
-    try {
-
-      const latest =
-        await fetchLatestBaileysVersion();
-
-      version = latest.version;
-
-      console.log(
-        "📡 WhatsApp version:",
-        version.join(".")
-      );
-
-    } catch {
-
-      console.log(
-        "⚠️ Could not fetch WhatsApp version."
-      );
-    }
+      saveCreds,
+    } = await useMultiFileAuthState(
+      AUTH_DIR
+    );
 
     const sock = makeWASocket({
-
       auth: state,
-
       logger,
 
       browser:
-        Browsers.macOS("Chrome"),
+        Browsers.ubuntu("Chrome"),
 
       printQRInTerminal: false,
 
@@ -393,10 +384,6 @@ async function startMaliya() {
       defaultQueryTimeoutMs: 60000,
 
       keepAliveIntervalMs: 25000,
-
-      ...(version
-        ? { version }
-        : {})
     });
 
     sock.ev.on(
@@ -406,12 +393,11 @@ async function startMaliya() {
 
     let pairingRequested = false;
 
-    /* =========================
+    /* =================================================
        PAIRING CODE
-    ========================= */
+    ================================================= */
 
     async function requestPairing() {
-
       if (
         pairingRequested ||
         state.creds.registered ||
@@ -423,8 +409,7 @@ async function startMaliya() {
       pairingRequested = true;
 
       try {
-
-        await sleep(3000);
+        await sleep(5000);
 
         if (state.creds.registered) {
           return;
@@ -455,9 +440,7 @@ async function startMaliya() {
           "╚════════════════════════════════╝"
         );
         console.log("");
-
       } catch (error) {
-
         pairingRequested = false;
 
         console.log(
@@ -467,21 +450,22 @@ async function startMaliya() {
       }
     }
 
-    /* =========================
+    /* =================================================
        CONNECTION
-    ========================= */
+    ================================================= */
 
     sock.ev.on(
       "connection.update",
-      async update => {
-
+      async (update) => {
         const {
           connection,
-          lastDisconnect
+          lastDisconnect,
         } = update;
 
-        if (connection === "connecting") {
-
+        if (
+          connection ===
+          "connecting"
+        ) {
           console.log(
             "🔄 Connecting to WhatsApp..."
           );
@@ -489,8 +473,9 @@ async function startMaliya() {
           await requestPairing();
         }
 
-        if (connection === "open") {
-
+        if (
+          connection === "open"
+        ) {
           starting = false;
 
           pairingRequested = true;
@@ -511,13 +496,19 @@ async function startMaliya() {
           console.log("");
         }
 
-        if (connection === "close") {
-
+        if (
+          connection === "close"
+        ) {
           starting = false;
 
           const statusCode =
-            lastDisconnect?.error
-              ?.output?.statusCode ||
+            lastDisconnect
+              ?.error
+              ?.output
+              ?.statusCode ||
+            lastDisconnect
+              ?.error
+              ?.statusCode ||
             "unknown";
 
           console.log(
@@ -529,7 +520,6 @@ async function startMaliya() {
             statusCode ===
               DisconnectReason.loggedOut
           ) {
-
             console.log(
               "⚠️ WhatsApp logged out."
             );
@@ -542,31 +532,31 @@ async function startMaliya() {
           }
 
           if (!reconnectTimer) {
-
             reconnectTimer =
-              setTimeout(() => {
+              setTimeout(
+                () => {
+                  reconnectTimer = null;
 
-                reconnectTimer = null;
-
-                startMaliya()
-                  .catch(console.error);
-
-              }, 12000);
+                  startMaliya()
+                    .catch(
+                      console.error
+                    );
+                },
+                10000
+              );
           }
         }
       }
     );
 
-    /* =========================
-       GROUP WELCOME
-    ========================= */
+    /* =================================================
+       WELCOME / GOODBYE
+    ================================================= */
 
     sock.ev.on(
       "group-participants.update",
-      async update => {
-
+      async (update) => {
         try {
-
           const metadata =
             await getGroupMetadata(
               sock,
@@ -579,14 +569,14 @@ async function startMaliya() {
             const participant
             of update.participants
           ) {
-
             const number =
-              cleanNumber(participant.id);
+              cleanNumber(
+                participant.id
+              );
 
             if (
               update.action === "add"
             ) {
-
               await sock.sendMessage(
                 update.id,
                 {
@@ -606,17 +596,17 @@ ${metadata.subject}
 > ${BOT_NAME}`,
 
                   mentions: [
-                    participant.id
-                  ]
+                    participant.id,
+                  ],
                 }
               );
             }
 
             if (
-              update.action === "remove" ||
+              update.action ===
+                "remove" ||
               update.action === "leave"
             ) {
-
               await sock.sendMessage(
                 update.id,
                 {
@@ -633,84 +623,96 @@ ${metadata.subject}
 > ${BOT_NAME}`,
 
                   mentions: [
-                    participant.id
-                  ]
+                    participant.id,
+                  ],
                 }
               );
             }
           }
-
         } catch (error) {
-
           console.log(
             "Welcome error:",
-            error.message
+            error?.message || error
           );
         }
       }
     );
 
-    /* =========================
+    /* =================================================
        MESSAGE HANDLER
-    ========================= */
+    ================================================= */
 
     sock.ev.on(
       "messages.upsert",
       async ({ messages }) => {
 
-        const m = messages?.[0];
+        try {
 
-        if (!m?.message) return;
+          const m =
+            messages?.[0];
 
-        const jid =
-          m.key.remoteJid;
+          if (!m?.message) {
+            return;
+          }
 
-        if (
-          !jid ||
-          jid === "status@broadcast"
-        ) {
-          return;
-        }
+          const jid =
+            m.key.remoteJid;
 
-        /*
-          IMPORTANT:
-          Do NOT use:
-          if (m.key.fromMe) return;
+          if (
+            !jid ||
+            jid ===
+              "status@broadcast"
+          ) {
+            return;
+          }
 
-          This allows testing from Message Yourself.
-        */
+          /*
+           * IMPORTANT:
+           * fromMe is NOT blocked.
+           * Therefore Message Yourself testing
+           * will also work.
+           */
 
-        const messageText =
-          getText(m.message).trim();
+          const messageText =
+            getText(
+              m.message
+            ).trim();
 
-        if (!messageText) return;
+          if (!messageText) {
+            return;
+          }
 
-        const sender =
-          m.key.participant || jid;
+          const sender =
+            m.key.participant ||
+            jid;
 
-        const quoted =
-          getQuoted(m.message);
+          const quoted =
+            getQuoted(
+              m.message
+            );
 
-        const group =
-          isGroup(jid);
+          const group =
+            isGroup(jid);
 
-        console.log(
-          `[MESSAGE] ${messageText}`
-        );
+          console.log(
+            `[MESSAGE] ${messageText}`
+          );
 
-        /* =========================
-           CLICK MENU RESPONSES
-        ========================= */
+          const lower =
+            messageText.toLowerCase();
 
-        if (
-          messageText === "menu_1" ||
-          messageText === "1" ||
-          messageText === "1️⃣"
-        ) {
+          /* =================================================
+             MAIN MENU BUTTONS / NUMBERS
+          ================================================= */
 
-          await sendText(
-            sock,
-            jid,
+          if (
+            lower === "menu_1" ||
+            lower === "1" ||
+            lower === "1️⃣"
+          ) {
+            await sendText(
+              sock,
+              jid,
 `🎵 SONG / AUDIO
 
 Song name එක හෝ YouTube link එක send කරන්න.
@@ -721,21 +723,20 @@ Example:
 හෝ
 
 .song https://youtube.com/...`,
-            m
-          );
+              m
+            );
 
-          return;
-        }
+            return;
+          }
 
-        if (
-          messageText === "menu_2" ||
-          messageText === "2" ||
-          messageText === "2️⃣"
-        ) {
-
-          await sendText(
-            sock,
-            jid,
+          if (
+            lower === "menu_2" ||
+            lower === "2" ||
+            lower === "2️⃣"
+          ) {
+            await sendText(
+              sock,
+              jid,
 `🎬 VIDEO
 
 Video name එක හෝ YouTube link එක send කරන්න.
@@ -746,784 +747,195 @@ Example:
 හෝ
 
 .video https://youtube.com/...`,
-            m
-          );
+              m
+            );
 
-          return;
-        }
+            return;
+          }
 
-        if (
-          messageText === "menu_3" ||
-          messageText === "3" ||
-          messageText === "3️⃣"
-        ) {
-
-          await sendText(
-            sock,
-            jid,
+          if (
+            lower === "menu_3" ||
+            lower === "3" ||
+            lower === "3️⃣"
+          ) {
+            await sendText(
+              sock,
+              jid,
 `🤖 AI
 
-ඔයාට AI එකෙන් අහන්න ඕන question එක send කරන්න.
+Question එකක් අහන්න.
 
 Example:
-.ai What is artificial intelligence?`,
-            m
-          );
+.ai What is AI?`,
+              m
+            );
 
-          return;
-        }
+            return;
+          }
 
-        if (
-          messageText === "4" ||
-          messageText === "4️⃣"
-        ) {
-
-          await sendText(
-            sock,
-            jid,
+          if (
+            lower === "4" ||
+            lower === "4️⃣"
+          ) {
+            await sendText(
+              sock,
+              jid,
 `🖼️ STICKER
 
-Image එකක් එක්ක .sticker send කරන්න.
+Image එකකට reply කරලා:
 
-හෝ image එකකට reply කරලා .sticker දාන්න.`,
-            m
-          );
+.sticker
 
-          return;
-        }
+හෝ
 
-        if (
-          messageText === "5" ||
-          messageText === "5️⃣"
-        ) {
+.s`,
+              m
+            );
 
-          await sendText(
-            sock,
-            jid,
+            return;
+          }
+
+          if (
+            lower === "5" ||
+            lower === "5️⃣"
+          ) {
+            await sendText(
+              sock,
+              jid,
 `📥 SOCIAL DOWNLOAD
 
-TikTok / Instagram / Facebook URL එක send කරන්න.
+.social <URL>
 
-Example:
-.social https://...`,
-            m
-          );
-
-          return;
-        }
-
-        if (
-          messageText === "6" ||
-          messageText === "6️⃣"
-        ) {
-
-          if (!group) {
-
-            await sendText(
-              sock,
-              jid,
-              "❌ Group එකකදී විතරයි Group Menu එක භාවිතා කරන්න පුළුවන්.",
+TikTok / Instagram /
+Facebook URL එකක් දාන්න.`,
               m
             );
 
             return;
           }
 
-          await sendGroupMenu(
-            sock,
-            jid,
-            m
-          );
+          if (
+            lower === "6" ||
+            lower === "6️⃣"
+          ) {
+            if (!group) {
+              await sendText(
+                sock,
+                jid,
+                "❌ Group එකකදී විතරයි.",
+                m
+              );
 
-          return;
-        }
+              return;
+            }
 
-        if (
-          messageText === "7" ||
-          messageText === "7️⃣"
-        ) {
-
-          if (!OWNER_NUMBER) {
-
-            await sendText(
+            await sendGroupMenu(
               sock,
               jid,
-              "❌ OWNER_NUMBER configure කරලා නැහැ.",
               m
             );
 
             return;
           }
 
-          await sendText(
-            sock,
-            jid,
-            `👑 OWNER\n\n📱 +${OWNER_NUMBER}`,
-            m
-          );
+          if (
+            lower === "7" ||
+            lower === "7️⃣"
+          ) {
+            await sendText(
+              sock,
+              jid,
+              OWNER_NUMBER
+                ? `👑 OWNER\n\n📱 +${OWNER_NUMBER}`
+                : "❌ OWNER_NUMBER configure කරලා නැහැ.",
+              m
+            );
 
-          return;
-        }
+            return;
+          }
 
-        if (
-          messageText === "8" ||
-          messageText === "8️⃣"
-        ) {
-
-          await sendText(
-            sock,
-            jid,
-`🤖 ${BOT_NAME}
-
-🟢 Status: Online
-🇱🇰 Country: Sri Lanka
-📅 Date: ${getDate()}
-🕐 Time: ${getTime()}
-
-Powered by MALIYA-X`,
-            m
-          );
-
-          return;
-        }
-
-        if (
-          messageText === "9" ||
-          messageText === "9️⃣"
-        ) {
-
-          await sendText(
-            sock,
-            jid,
-`😂 FUN MENU
-
-1️⃣ 😂 Joke
-2️⃣ 💡 Fact
-3️⃣ 💬 Quote
-4️⃣ 💪 Motivate
-
-Number එක reply කරන්න.`,
-            m
-          );
-
-          return;
-        }
-
-        /* =========================
-           COMMAND HANDLER
-        ========================= */
-
-        if (
-          !messageText.startsWith(PREFIX)
-        ) {
-          return;
-        }
-
-        const parts =
-          messageText
-            .slice(1)
-            .trim()
-            .split(/\s+/);
-
-        const cmd =
-          (parts.shift() || "")
-            .toLowerCase();
-
-        const args =
-          parts.join(" ").trim();
-
-        /* =========================
-           PING
-        ========================= */
-
-        if (cmd === "ping") {
-
-          const start =
-            Date.now();
-
-          await sendText(
-            sock,
-            jid,
-`🏓 PONG!
-
-⚡ Speed:
-${Date.now() - start} ms
-
-🤖 ${BOT_NAME}
-
-📅 ${getDate()}
-🕐 ${getTime()}`,
-            m
-          );
-
-          return;
-        }
-
-        /* =========================
-           MENU
-        ========================= */
-
-        if (
-          cmd === "menu" ||
-          cmd === "help" ||
-          cmd === "start"
-        ) {
-
-          await sendMainMenu(
-            sock,
-            jid,
-            m,
-            m.pushName || "Friend"
-          );
-
-          return;
-        }
-
-        /* =========================
-           TIME
-        ========================= */
-
-        if (cmd === "time") {
-
-          await sendText(
-            sock,
-            jid,
-`🕐 ${getTime()}
-
-📅 ${getDate()}
-
-🌍 Asia/Colombo 🇱🇰`,
-            m
-          );
-
-          return;
-        }
-
-        /* =========================
-           BOT INFO
-        ========================= */
-
-        if (
-          cmd === "botinfo" ||
-          cmd === "info"
-        ) {
-
-          await sendText(
-            sock,
-            jid,
+          if (
+            lower === "8" ||
+            lower === "8️⃣"
+          ) {
+            await sendText(
+              sock,
+              jid,
 `🤖 ${BOT_NAME}
 
 🟢 Status: Online
 🇱🇰 Sri Lanka
+
 📅 ${getDate()}
 🕐 ${getTime()}
 
-📱 Private + Group
-🎵 Audio
-🎬 Video
-🤖 AI
-🖼️ Sticker
-
-> Powered by MALIYA-X`,
-            m
-          );
-
-          return;
-        }
-
-        /* =========================
-           OWNER
-        ========================= */
-
-        if (cmd === "owner") {
-
-          if (!OWNER_NUMBER) {
-
-            await sendText(
-              sock,
-              jid,
-              "❌ OWNER_NUMBER configure කරලා නැහැ.",
+📱 Private + Group`,
               m
             );
 
             return;
           }
 
-          await sendText(
-            sock,
-            jid,
-            `👑 OWNER
-
-📱 +${OWNER_NUMBER}`,
-            m
-          );
-
-          return;
-        }
-
-        /* =========================
-           AI
-        ========================= */
-
-        if (cmd === "ai") {
-
-          if (!args) {
-
+          if (
+            lower === "9" ||
+            lower === "9️⃣"
+          ) {
             await sendText(
               sock,
               jid,
-              "🤖 Usage:\n.ai <question>",
+`😂 FUN MENU
+
+.joke
+.fact
+.quote
+.motivate
+.life
+.challenge`,
               m
             );
 
             return;
           }
 
-          await sendText(
-            sock,
-            jid,
-            "🤖 AI is thinking...",
-            m
-          );
-
-          try {
-
-            const result =
-              await aiRequest(args);
-
-            await sendText(
-              sock,
-              jid,
-`🤖 MALIYA-X AI
-
-${String(result)}`,
-              m
-            );
-
-          } catch (error) {
-
-            console.log(
-              "AI error:",
-              error.message
-            );
-
-            await sendText(
-              sock,
-              jid,
-              "❌ AI service unavailable.",
-              m
-            );
-          }
-
-          return;
-        }
-
-        /* =========================
-           SONG
-        ========================= */
-
-        if (
-          cmd === "song" ||
-          cmd === "audio"
-        ) {
-
-          if (!args) {
-
-            await sendText(
-              sock,
-              jid,
-`🎵 Usage:
-
-.song <song name>
-
-or
-
-.song <YouTube URL>`,
-              m
-            );
-
-            return;
-          }
-
-          try {
-
-            await sendText(
-              sock,
-              jid,
-              "🔎 Searching song...",
-              m
-            );
-
-            let url = args;
-            let title = args;
-
-            if (
-              !/^https?:\/\//i.test(args)
-            ) {
-
-              const result =
-                await ytSearch(args);
-
-              if (
-                !result.videos?.length
-              ) {
-
-                await sendText(
-                  sock,
-                  jid,
-                  "❌ Song not found.",
-                  m
-                );
-
-                return;
-              }
-
-              url =
-                result.videos[0].url;
-
-              title =
-                result.videos[0].title;
-            }
-
-            const result =
-              await audioDownload(url);
-
-            const media =
-              result?.download_url ||
-              result?.url;
-
-            if (!media) {
-              throw new Error(
-                "No audio URL"
-              );
-            }
-
-            await sock.sendMessage(
-              jid,
-              {
-                audio: {
-                  url: media
-                },
-
-                mimetype:
-                  "audio/mpeg",
-
-                fileName:
-                  `${title
-                    .substring(0, 70)
-                    .replace(/[\/\\:*?"<>|]/g, "")}.mp3`
-              },
-              { quoted: m }
-            );
-
-          } catch (error) {
-
-            console.log(
-              "Song error:",
-              error.message
-            );
-
-            await sendText(
-              sock,
-              jid,
-              "❌ Song download failed.",
-              m
-            );
-          }
-
-          return;
-        }
-
-        /* =========================
-           VIDEO
-        ========================= */
-
-        if (
-          cmd === "video" ||
-          cmd === "ytdl"
-        ) {
-
-          if (!args) {
-
-            await sendText(
-              sock,
-              jid,
-`🎬 Usage:
-
-.video <video name>
-
-or
-
-.video <YouTube URL>`,
-              m
-            );
-
-            return;
-          }
-
-          try {
-
-            await sendText(
-              sock,
-              jid,
-              "🔎 Searching video...",
-              m
-            );
-
-            let url = args;
-            let title = args;
-
-            if (
-              !/^https?:\/\//i.test(args)
-            ) {
-
-              const result =
-                await ytSearch(args);
-
-              if (
-                !result.videos?.length
-              ) {
-
-                await sendText(
-                  sock,
-                  jid,
-                  "❌ Video not found.",
-                  m
-                );
-
-                return;
-              }
-
-              url =
-                result.videos[0].url;
-
-              title =
-                result.videos[0].title;
-            }
-
-            const result =
-              await videoDownload(url);
-
-            const media =
-              result?.download_url ||
-              result?.url;
-
-            if (!media) {
-              throw new Error(
-                "No video URL"
-              );
-            }
-
-            await sock.sendMessage(
-              jid,
-              {
-                video: {
-                  url: media
-                },
-
-                caption:
-`🎬 ${title}
-
-> ${BOT_NAME}`
-              },
-              { quoted: m }
-            );
-
-          } catch (error) {
-
-            console.log(
-              "Video error:",
-              error.message
-            );
-
-            await sendText(
-              sock,
-              jid,
-              "❌ Video download failed.",
-              m
-            );
-          }
-
-          return;
-        }
-
-        /* =========================
-           SOCIAL DOWNLOAD
-        ========================= */
-
-        if (
-          cmd === "social" ||
-          cmd === "dl"
-        ) {
-
-          if (!args) {
-
-            await sendText(
-              sock,
-              jid,
-`📥 Usage:
-
-.social <TikTok/Instagram/Facebook URL>`,
-              m
-            );
-
-            return;
-          }
-
-          try {
-
-            await sendText(
-              sock,
-              jid,
-              "📥 Downloading...",
-              m
-            );
-
-            const result =
-              await socialDownload(args);
-
-            const media =
-              result?.download_url ||
-              result?.url ||
-              result?.video ||
-              result?.media;
-
-            if (!media) {
-              throw new Error(
-                "No media URL"
-              );
-            }
-
-            await sock.sendMessage(
-              jid,
-              {
-                video: {
-                  url: media
-                },
-
-                caption:
-                  `📥 Downloaded\n\n${BOT_NAME}`
-              },
-              { quoted: m }
-            );
-
-          } catch (error) {
-
-            console.log(
-              "Social error:",
-              error.message
-            );
-
-            await sendText(
-              sock,
-              jid,
-              "❌ Social download failed.",
-              m
-            );
-          }
-
-          return;
-        }
-
-        /* =========================
-           STICKER
-        ========================= */
-
-        if (
-          cmd === "sticker" ||
-          cmd === "s"
-        ) {
-
-          const image =
-            m.message.imageMessage ||
-            quoted?.imageMessage;
-
-          if (!image) {
-
-            await sendText(
-              sock,
-              jid,
-`🖼️ Sticker හදන්න:
-
-1. Image එකක් send කරලා .sticker කරන්න
-
-හෝ
-
-2. Image එකකට reply කරලා .sticker කරන්න.`,
-              m
-            );
-
-            return;
-          }
-
-          try {
-
-            const buffer =
-              await downloadMedia(
-                image,
-                "image"
+          /* =================================================
+             GROUP MENU BUTTONS
+          ================================================= */
+
+          if (
+            lower === "group_info"
+          ) {
+            if (!group) {
+              await sendText(
+                sock,
+                jid,
+                "❌ Group only.",
+                m
               );
 
-            await sock.sendMessage(
-              jid,
-              {
-                sticker: buffer
-              },
-              { quoted: m }
-            );
+              return;
+            }
 
-          } catch (error) {
+            const metadata =
+              await getGroupMetadata(
+                sock,
+                jid
+              );
 
-            console.log(
-              "Sticker error:",
-              error.message
-            );
+            if (!metadata) {
+              return;
+            }
 
-            await sendText(
-              sock,
-              jid,
-              "❌ Sticker creation failed.",
-              m
-            );
-          }
-
-          return;
-        }
-
-        /* =========================
-           GROUP INFO
-        ========================= */
-
-        if (cmd === "groupinfo") {
-
-          if (!group) {
+            const admins =
+              metadata
+                .participants
+                .filter(
+                  (p) => p.admin
+                )
+                .length;
 
             await sendText(
               sock,
               jid,
-              "❌ මේ command එක Group එකකදී විතරයි.",
-              m
-            );
-
-            return;
-          }
-
-          const metadata =
-            await getGroupMetadata(
-              sock,
-              jid
-            );
-
-          if (!metadata) return;
-
-          const admins =
-            metadata.participants
-              .filter(p => p.admin)
-              .length;
-
-          await sendText(
-            sock,
-            jid,
 `👥 GROUP INFO
 
 🏠 ${metadata.subject}
@@ -1536,78 +948,6 @@ ${admins}
 
 📅 ${getDate()}
 🕐 ${getTime()}`,
-            m
-          );
-
-          return;
-        }
-
-        /* =========================
-           TAG ALL
-        ========================= */
-
-        if (cmd === "tagall") {
-
-          if (!group) {
-
-            await sendText(
-              sock,
-              jid,
-              "❌ Group only.",
-              m
-            );
-
-            return;
-          }
-
-          const metadata =
-            await getGroupMetadata(
-              sock,
-              jid
-            );
-
-          if (!metadata) return;
-
-          const mentions =
-            metadata.participants
-              .map(p => p.id);
-
-          const body =
-            `📢 TAG ALL\n\n` +
-            metadata.participants
-              .map(
-                p =>
-                  `👤 @${cleanNumber(p.id)}`
-              )
-              .join("\n");
-
-          await sock.sendMessage(
-            jid,
-            {
-              text: body,
-              mentions
-            },
-            { quoted: m }
-          );
-
-          return;
-        }
-
-        /* =========================
-           MUTE / UNMUTE
-        ========================= */
-
-        if (
-          cmd === "mute" ||
-          cmd === "unmute"
-        ) {
-
-          if (!group) {
-
-            await sendText(
-              sock,
-              jid,
-              "❌ Group only.",
               m
             );
 
@@ -1615,17 +955,934 @@ ${admins}
           }
 
           if (
-            !(await isAdmin(
-              sock,
-              jid,
-              sender
-            ))
+            lower ===
+            "group_tagall"
           ) {
+            if (!group) {
+              await sendText(
+                sock,
+                jid,
+                "❌ Group only.",
+                m
+              );
+
+              return;
+            }
+
+            const metadata =
+              await getGroupMetadata(
+                sock,
+                jid
+              );
+
+            if (!metadata) {
+              return;
+            }
+
+            const mentions =
+              metadata.participants
+                .map(
+                  (p) => p.id
+                );
+
+            const body =
+              "📢 TAG ALL\n\n" +
+              metadata.participants
+                .map(
+                  (p) =>
+                    `👤 @${cleanNumber(
+                      p.id
+                    )}`
+                )
+                .join("\n");
+
+            await sock.sendMessage(
+              jid,
+              {
+                text: body,
+                mentions,
+              },
+              {
+                quoted: m,
+              }
+            );
+
+            return;
+          }
+
+          if (
+            lower ===
+            "group_mute"
+          ) {
+            if (!group) {
+              await sendText(
+                sock,
+                jid,
+                "❌ Group only.",
+                m
+              );
+
+              return;
+            }
+
+            if (
+              !(await isAdmin(
+                sock,
+                jid,
+                sender
+              ))
+            ) {
+              await sendText(
+                sock,
+                jid,
+                "❌ Admins only.",
+                m
+              );
+
+              return;
+            }
+
+            if (
+              !(await isBotAdmin(
+                sock,
+                jid
+              ))
+            ) {
+              await sendText(
+                sock,
+                jid,
+                "❌ Bot එකට admin permission ඕන.",
+                m
+              );
+
+              return;
+            }
+
+            await sock.groupSettingUpdate(
+              jid,
+              "announcement"
+            );
 
             await sendText(
               sock,
               jid,
-              "❌ Admins only.",
+              "🔒 Group muted.",
+              m
+            );
+
+            return;
+          }
+
+          /* =================================================
+             COMMAND PARSER
+          ================================================= */
+
+          if (
+            !messageText.startsWith(
+              PREFIX
+            )
+          ) {
+            return;
+          }
+
+          const parts =
+            messageText
+              .slice(1)
+              .trim()
+              .split(/\s+/);
+
+          const cmd =
+            (
+              parts.shift() ||
+              ""
+            ).toLowerCase();
+
+          const args =
+            parts
+              .join(" ")
+              .trim();
+
+          /* =================================================
+             PING
+          ================================================= */
+
+          if (cmd === "ping") {
+            const start =
+              Date.now();
+
+            await sendText(
+              sock,
+              jid,
+`🏓 PONG!
+
+⚡ Speed:
+${Date.now() - start} ms
+
+🤖 ${BOT_NAME}
+
+📅 ${getDate()}
+🕐 ${getTime()}`,
+              m
+            );
+
+            return;
+          }
+
+          /* =================================================
+             MENU
+          ================================================= */
+
+          if (
+            cmd === "menu" ||
+            cmd === "help" ||
+            cmd === "start"
+          ) {
+            await sendMainMenu(
+              sock,
+              jid,
+              m,
+              m.pushName ||
+                "Friend"
+            );
+
+            return;
+          }
+
+          /* =================================================
+             TIME
+          ================================================= */
+
+          if (cmd === "time") {
+            await sendText(
+              sock,
+              jid,
+`🕐 ${getTime()}
+
+📅 ${getDate()}
+
+🌍 Asia/Colombo 🇱🇰`,
+              m
+            );
+
+            return;
+          }
+
+          /* =================================================
+             BOT INFO
+          ================================================= */
+
+          if (
+            cmd === "botinfo" ||
+            cmd === "info"
+          ) {
+            await sendText(
+              sock,
+              jid,
+`🤖 ${BOT_NAME}
+
+🟢 Status: Online
+🇱🇰 Sri Lanka
+
+📱 Private + Group
+🎵 Audio
+🎬 Video
+🤖 AI
+🖼️ Sticker
+👥 Group Tools
+
+📅 ${getDate()}
+🕐 ${getTime()}`,
+              m
+            );
+
+            return;
+          }
+
+          /* =================================================
+             OWNER
+          ================================================= */
+
+          if (
+            cmd === "owner"
+          ) {
+            await sendText(
+              sock,
+              jid,
+              OWNER_NUMBER
+                ? `👑 OWNER\n\n📱 +${OWNER_NUMBER}`
+                : "❌ OWNER_NUMBER configure කරලා නැහැ.",
+              m
+            );
+
+            return;
+          }
+
+          /* =================================================
+             AI
+          ================================================= */
+
+          if (cmd === "ai") {
+
+            if (!args) {
+              await sendText(
+                sock,
+                jid,
+                "🤖 Usage:\n.ai <question>",
+                m
+              );
+
+              return;
+            }
+
+            await sendText(
+              sock,
+              jid,
+              "🤖 AI is thinking...",
+              m
+            );
+
+            try {
+              const result =
+                await aiRequest(
+                  args
+                );
+
+              await sendText(
+                sock,
+                jid,
+`🤖 MALIYA-X AI
+
+${String(result)}`,
+                m
+              );
+            } catch (error) {
+              console.log(
+                "AI error:",
+                error?.message ||
+                  error
+              );
+
+              await sendText(
+                sock,
+                jid,
+                "❌ AI service unavailable.",
+                m
+              );
+            }
+
+            return;
+          }
+
+          /* =================================================
+             SONG
+          ================================================= */
+
+          if (
+            cmd === "song" ||
+            cmd === "audio"
+          ) {
+
+            if (!args) {
+              await sendText(
+                sock,
+                jid,
+`🎵 Usage:
+
+.song <song name>
+
+or
+
+.song <YouTube URL>`,
+                m
+              );
+
+              return;
+            }
+
+            try {
+              await sendText(
+                sock,
+                jid,
+                "🔎 Searching song...",
+                m
+              );
+
+              let url = args;
+              let title = args;
+
+              if (
+                !/^https?:\/\//i.test(
+                  args
+                )
+              ) {
+                const result =
+                  await ytSearch(
+                    args
+                  );
+
+                if (
+                  !result.videos
+                    ?.length
+                ) {
+                  await sendText(
+                    sock,
+                    jid,
+                    "❌ Song not found.",
+                    m
+                  );
+
+                  return;
+                }
+
+                url =
+                  result.videos[0]
+                    .url;
+
+                title =
+                  result.videos[0]
+                    .title;
+              }
+
+              const result =
+                await audioDownload(
+                  url
+                );
+
+              const media =
+                result?.download_url ||
+                result?.url;
+
+              if (!media) {
+                throw new Error(
+                  "No audio URL"
+                );
+              }
+
+              const safeTitle =
+                title
+                  .substring(
+                    0,
+                    70
+                  )
+                  .replace(
+                    /[\/\\:*?"<>|]/g,
+                    ""
+                  );
+
+              await sock.sendMessage(
+                jid,
+                {
+                  audio: {
+                    url: media,
+                  },
+
+                  mimetype:
+                    "audio/mpeg",
+
+                  fileName:
+                    `${safeTitle ||
+                      "song"}.mp3`,
+                },
+                {
+                  quoted: m,
+                }
+              );
+            } catch (error) {
+              console.log(
+                "Song error:",
+                error?.message ||
+                  error
+              );
+
+              await sendText(
+                sock,
+                jid,
+                "❌ Song download failed.",
+                m
+              );
+            }
+
+            return;
+          }
+
+          /* =================================================
+             VIDEO
+          ================================================= */
+
+          if (
+            cmd === "video" ||
+            cmd === "ytdl"
+          ) {
+
+            if (!args) {
+              await sendText(
+                sock,
+                jid,
+`🎬 Usage:
+
+.video <video name>
+
+or
+
+.video <YouTube URL>`,
+                m
+              );
+
+              return;
+            }
+
+            try {
+              await sendText(
+                sock,
+                jid,
+                "🔎 Searching video...",
+                m
+              );
+
+              let url = args;
+              let title = args;
+
+              if (
+                !/^https?:\/\//i.test(
+                  args
+                )
+              ) {
+                const result =
+                  await ytSearch(
+                    args
+                  );
+
+                if (
+                  !result.videos
+                    ?.length
+                ) {
+                  await sendText(
+                    sock,
+                    jid,
+                    "❌ Video not found.",
+                    m
+                  );
+
+                  return;
+                }
+
+                url =
+                  result.videos[0]
+                    .url;
+
+                title =
+                  result.videos[0]
+                    .title;
+              }
+
+              const result =
+                await videoDownload(
+                  url
+                );
+
+              const media =
+                result?.download_url ||
+                result?.url;
+
+              if (!media) {
+                throw new Error(
+                  "No video URL"
+                );
+              }
+
+              await sock.sendMessage(
+                jid,
+                {
+                  video: {
+                    url: media,
+                  },
+
+                  caption:
+`🎬 ${title}
+
+> ${BOT_NAME}`,
+                },
+                {
+                  quoted: m,
+                }
+              );
+            } catch (error) {
+              console.log(
+                "Video error:",
+                error?.message ||
+                  error
+              );
+
+              await sendText(
+                sock,
+                jid,
+                "❌ Video download failed.",
+                m
+              );
+            }
+
+            return;
+          }
+
+          /* =================================================
+             SOCIAL
+          ================================================= */
+
+          if (
+            cmd === "social" ||
+            cmd === "dl"
+          ) {
+
+            if (!args) {
+              await sendText(
+                sock,
+                jid,
+`📥 Usage:
+
+.social <TikTok/Instagram/Facebook URL>`,
+                m
+              );
+
+              return;
+            }
+
+            try {
+              await sendText(
+                sock,
+                jid,
+                "📥 Downloading...",
+                m
+              );
+
+              const result =
+                await socialDownload(
+                  args
+                );
+
+              const media =
+                result?.download_url ||
+                result?.url ||
+                result?.video ||
+                result?.media;
+
+              if (!media) {
+                throw new Error(
+                  "No media URL"
+                );
+              }
+
+              await sock.sendMessage(
+                jid,
+                {
+                  video: {
+                    url: media,
+                  },
+
+                  caption:
+                    `📥 Downloaded\n\n${BOT_NAME}`,
+                },
+                {
+                  quoted: m,
+                }
+              );
+            } catch (error) {
+              console.log(
+                "Social error:",
+                error?.message ||
+                  error
+              );
+
+              await sendText(
+                sock,
+                jid,
+                "❌ Social download failed.",
+                m
+              );
+            }
+
+            return;
+          }
+
+          /* =================================================
+             STICKER
+          ================================================= */
+
+          if (
+            cmd === "sticker" ||
+            cmd === "s"
+          ) {
+
+            const image =
+              m.message
+                .imageMessage ||
+              quoted?.imageMessage;
+
+            if (!image) {
+              await sendText(
+                sock,
+                jid,
+`🖼️ Sticker හදන්න:
+
+Image එකකට reply කරලා:
+
+.sticker
+
+හෝ
+
+.s`,
+                m
+              );
+
+              return;
+            }
+
+            try {
+              const buffer =
+                await downloadMedia(
+                  image,
+                  "image"
+                );
+
+              await sock.sendMessage(
+                jid,
+                {
+                  sticker: buffer,
+                },
+                {
+                  quoted: m,
+                }
+              );
+            } catch (error) {
+              console.log(
+                "Sticker error:",
+                error?.message ||
+                  error
+              );
+
+              await sendText(
+                sock,
+                jid,
+                "❌ Sticker creation failed.",
+                m
+              );
+            }
+
+            return;
+          }
+
+          /* =================================================
+             GROUP INFO
+          ================================================= */
+
+          if (
+            cmd === "groupinfo"
+          ) {
+
+            if (!group) {
+              await sendText(
+                sock,
+                jid,
+                "❌ මේ command එක Group එකකදී විතරයි.",
+                m
+              );
+
+              return;
+            }
+
+            const metadata =
+              await getGroupMetadata(
+                sock,
+                jid
+              );
+
+            if (!metadata) {
+              return;
+            }
+
+            const admins =
+              metadata
+                .participants
+                .filter(
+                  (p) => p.admin
+                )
+                .length;
+
+            await sendText(
+              sock,
+              jid,
+`👥 GROUP INFO
+
+🏠 ${metadata.subject}
+
+👥 Members:
+${metadata.participants.length}
+
+👑 Admins:
+${admins}
+
+📅 ${getDate()}
+🕐 ${getTime()}`,
+              m
+            );
+
+            return;
+          }
+
+          /* =================================================
+             TAG ALL
+          ================================================= */
+
+          if (
+            cmd === "tagall"
+          ) {
+
+            if (!group) {
+              await sendText(
+                sock,
+                jid,
+                "❌ Group only.",
+                m
+              );
+
+              return;
+            }
+
+            const metadata =
+              await getGroupMetadata(
+                sock,
+                jid
+              );
+
+            if (!metadata) {
+              return;
+            }
+
+            const mentions =
+              metadata.participants
+                .map(
+                  (p) => p.id
+                );
+
+            const body =
+              `📢 TAG ALL\n\n` +
+              metadata
+                .participants
+                .map(
+                  (p) =>
+                    `👤 @${cleanNumber(
+                      p.id
+                    )}`
+                )
+                .join("\n");
+
+            await sock.sendMessage(
+              jid,
+              {
+                text: body,
+                mentions,
+              },
+              {
+                quoted: m,
+              }
+            );
+
+            return;
+          }
+
+          /* =================================================
+             MUTE / UNMUTE
+          ================================================= */
+
+          if (
+            cmd === "mute" ||
+            cmd === "unmute"
+          ) {
+
+            if (!group) {
+              await sendText(
+                sock,
+                jid,
+                "❌ Group only.",
+                m
+              );
+
+              return;
+            }
+
+            if (
+              !(await isAdmin(
+                sock,
+                jid,
+                sender
+              ))
+            ) {
+              await sendText(
+                sock,
+                jid,
+                "❌ Admins only.",
+                m
+              );
+
+              return;
+            }
+
+            if (
+              !(await isBotAdmin(
+                sock,
+                jid
+              ))
+            ) {
+              await sendText(
+                sock,
+                jid,
+                "❌ Bot එකට admin permission ඕන.",
+                m
+              );
+
+              return;
+            }
+
+            await sock.groupSettingUpdate(
+              jid,
+              cmd === "mute"
+                ? "announcement"
+                : "not_announcement"
+            );
+
+            await sendText(
+              sock,
+              jid,
+              cmd === "mute"
+                ? "🔒 Group muted."
+                : "🔓 Group unmuted.",
+              m
+            );
+
+            return;
+          }
+
+          /* =================================================
+             FUN
+          ================================================= */
+
+          if (
+            cmd === "joke"
+          ) {
+            const jokes = [
+              "😂 Teacher: Why are you late? Student: Because the sign said SCHOOL AHEAD.",
+              "😂 WiFi password එක අහලා 'askme' කිව්වා. මම 'askme?' කියලා ආයෙ ඇහුවා 🤣",
+              "😂 Programmer කෙනෙක් coffee එකක් බොන්නේ ඇයි? Java එකක් නිසා ☕🤣",
+            ];
+
+            await sendText(
+              sock,
+              jid,
+              jokes[
+                Math.floor(
+                  Math.random() *
+                    jokes.length
+                )
+              ],
               m
             );
 
@@ -1633,185 +1890,139 @@ ${admins}
           }
 
           if (
-            !(await isBotAdmin(
-              sock,
-              jid
-            ))
+            cmd === "fact"
           ) {
+            const facts = [
+              "🌍 Earth is not a perfect sphere.",
+              "🐙 Octopus එකකට hearts තුනක් තියෙනවා.",
+              "🌙 Moon එක Earth එකෙන් ටිකෙන් ටික ඈත් වෙනවා.",
+            ];
 
             await sendText(
               sock,
               jid,
-              "❌ Bot එකට admin permission ඕන.",
+              facts[
+                Math.floor(
+                  Math.random() *
+                    facts.length
+                )
+              ],
               m
             );
 
             return;
           }
 
-          await sock.groupSettingUpdate(
-            jid,
-            cmd === "mute"
-              ? "announcement"
-              : "not_announcement"
-          );
+          if (
+            cmd === "quote"
+          ) {
+            const quotes = [
+              "✨ Believe in yourself and keep moving forward.",
+              "🔥 Small progress is still progress.",
+              "🌟 Your future needs your effort today.",
+            ];
 
-          await sendText(
-            sock,
-            jid,
-            cmd === "mute"
-              ? "🔒 Group muted."
-              : "🔓 Group unmuted.",
-            m
-          );
+            await sendText(
+              sock,
+              jid,
+              quotes[
+                Math.floor(
+                  Math.random() *
+                    quotes.length
+                )
+              ],
+              m
+            );
 
-          return;
-        }
+            return;
+          }
 
-        /* =========================
-           FUN
-        ========================= */
-
-        if (cmd === "joke") {
-
-          const jokes = [
-            "😂 Teacher: Why are you late? Student: Because the sign said SCHOOL AHEAD.",
-            "😂 WiFi password එක අහලා 'askme' කිව්වා. මම 'askme?' කියලා ආයෙ ඇහුවා 🤣"
-          ];
-
-          await sendText(
-            sock,
-            jid,
-            jokes[
-              Math.floor(
-                Math.random() *
-                jokes.length
-              )
-            ],
-            m
-          );
-
-          return;
-        }
-
-        if (cmd === "fact") {
-
-          const facts = [
-            "🌍 Earth is not a perfect sphere.",
-            "🐙 Octopus එකකට hearts තුනක් තියෙනවා.",
-            "🌙 Moon එක Earth එකෙන් ටිකෙන් ටික ඈත් වෙනවා."
-          ];
-
-          await sendText(
-            sock,
-            jid,
-            facts[
-              Math.floor(
-                Math.random() *
-                facts.length
-              )
-            ],
-            m
-          );
-
-          return;
-        }
-
-        if (cmd === "quote") {
-
-          const quotes = [
-            "✨ Believe in yourself and keep moving forward.",
-            "🔥 Small progress is still progress.",
-            "🌟 Your future needs your effort today."
-          ];
-
-          await sendText(
-            sock,
-            jid,
-            quotes[
-              Math.floor(
-                Math.random() *
-                quotes.length
-              )
-            ],
-            m
-          );
-
-          return;
-        }
-
-        if (cmd === "motivate") {
-
-          await sendText(
-            sock,
-            jid,
-`💪 අද ගන්න පොඩි step එකක් හෙට ලොකු result එකක් වෙන්න පුළුවන්.
+          if (
+            cmd === "motivate"
+          ) {
+            await sendText(
+              sock,
+              jid,
+`💪 අද ගන්න පොඩි step එකක්
+හෙට ලොකු result එකක් වෙන්න පුළුවන්.
 
 🔥 Give up නොවී continue කරන්න.
 
-🚀 Slow progress is better than no progress.`,
-            m
-          );
+🚀 Slow progress is better
+than no progress.`,
+              m
+            );
 
-          return;
-        }
+            return;
+          }
 
-        if (cmd === "life") {
-
-          await sendText(
-            sock,
-            jid,
+          if (
+            cmd === "life"
+          ) {
+            await sendText(
+              sock,
+              jid,
 `❤️ Life එක perfect නෑ.
 
 Difficult days permanent නෑ.
 
 Keep going! 💪🇱🇰`,
-            m
-          );
+              m
+            );
 
-          return;
-        }
+            return;
+          }
 
-        if (cmd === "challenge") {
+          if (
+            cmd === "challenge"
+          ) {
+            await sendText(
+              sock,
+              jid,
+`🎯 TODAY'S CHALLENGE
+
+අද ඔයාගේ goal එක වෙනුවෙන්
+එක action එකක් ගන්න.
+
+🔥 Don't wait.
+🚀 Start now!`,
+              m
+            );
+
+            return;
+          }
+
+          /* =================================================
+             UNKNOWN
+          ================================================= */
 
           await sendText(
             sock,
             jid,
-`🎯 TODAY'S CHALLENGE
-
-අද ඔයාගේ goal එක වෙනුවෙන් එක action එකක් ගන්න.
-
-🔥 Don't wait.
-🚀 Start now!`,
-            m
-          );
-
-          return;
-        }
-
-        /* =========================
-           UNKNOWN
-        ========================= */
-
-        await sendText(
-          sock,
-          jid,
 `❌ Unknown command.
 
 📋 .menu දාන්න
 
-නැත්නම් menu එකේ number එක select කරන්න.`,
-          m
-        );
+හෝ menu එකේ
+number එක reply කරන්න.`,
+            m
+          );
 
-      } catch (error) {
+        } catch (error) {
 
-        console.log(
-          "Message error:",
-          error?.message || error
-        );
+          /*
+           * IMPORTANT:
+           * This catch belongs to the try above.
+           * This fixes the old index.js syntax error.
+           */
+
+          console.log(
+            "❌ Message error:",
+            error?.message || error
+          );
+        }
       }
-    });
+    );
 
   } catch (error) {
 
@@ -1823,23 +2034,24 @@ Keep going! 💪🇱🇰`,
     );
 
     if (!reconnectTimer) {
-
       reconnectTimer =
         setTimeout(() => {
 
           reconnectTimer = null;
 
           startMaliya()
-            .catch(console.error);
+            .catch(
+              console.error
+            );
 
         }, 15000);
     }
   }
 }
 
-/* =========================
+/* =====================================================
    START
-========================= */
+===================================================== */
 
 console.log(`
 ╔════════════════════════════════╗
@@ -1861,7 +2073,10 @@ if (!PHONE_NUMBER) {
 } else {
 
   console.log(
-    `📱 Pairing number loaded: ${PHONE_NUMBER.slice(0, 3)}******`
+    `📱 Pairing number loaded: ${PHONE_NUMBER.slice(
+      0,
+      3
+    )}******`
   );
 }
 
