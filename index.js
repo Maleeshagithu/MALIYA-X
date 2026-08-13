@@ -1,8 +1,8 @@
 /**
  * MALIYA-X V2 - WhatsApp Bot
- * Complete Production Source Code with Express Server, Pairing Code Support, 
- * Connection Notification Message, Image Menus, Interactive Buttons, Working YouTube Thumbnails/Downloads, 
- * Sticker Maker, HD Quality Selectors, Advanced NSFW List, Auto Greetings, & DP Welcomes.
+ * Complete Production Source Code with Express Server, Self-Chat Command Support, 
+ * Pairing Code Support, Connection Notification Message, Image Menus, Working YouTube 
+ * Downloads, Sticker Maker, HD Quality Selectors, & Advanced NSFW List.
  */
 
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
@@ -60,7 +60,7 @@ async function startMaliyaX() {
                 const connectedMsg = `🚀 *MALIYA-X V2 Bot Connected Successfully!* 🇱🇰🔥\n\n` +
                     `Status: Online & Ready ✅\n` +
                     `Version: v2.0.0\n` +
-                    `All features, menus, and NSFW commands are loaded and active! ツ`;
+                    `All features, menus, and commands are loaded and active! ツ`;
                 
                 await sock.sendMessage(botNumber, { text: connectedMsg });
             } catch (err) {
@@ -110,12 +110,13 @@ async function startMaliyaX() {
         }
     });
 
-    // 3. Main Message Upsert & Command Processor (Private & Groups Support)
+    // 3. Main Message Upsert & Command Processor (Private, Self-Chat & Groups Support)
     sock.ev.on('messages.upsert', async (m) => {
         try {
             const mek = m.messages[0];
             if (!mek.message) return;
-            if (mek.key.fromMe) return;
+            
+            // සටහන: ඔබගේම අංකයෙන් (self-chat) commands ක්‍රියාත්මක වීමට පහත 'if (mek.key.fromMe) return;' පේළිය ඉවත් කර ඇත.
 
             const messageType = Object.keys(mek.message)[0];
             let body = '';
@@ -139,10 +140,19 @@ async function startMaliyaX() {
             const args = body.trim().split(/ +/).slice(1);
             const query = args.join(' ');
 
+            // --- PING COMMAND (.ping) ---
+            if (['ping', '.ping'].includes(command)) {
+                const startPing = Date.now();
+                const sentMsg = await sock.sendMessage(from, { text: 'Pinging...' }, { quoted: mek });
+                const latency = Date.now() - startPing;
+                await sock.sendMessage(from, { text: `🚀 *MALIYA-X V2 Speed:* ${latency}ms 🇱🇰🔥` }, { quoted: mek });
+            }
+
             // --- MENU COMMAND (With Image) ---
             if (['menu', 'help', 'maliya', '.menu'].includes(command)) {
                 const menuImage = 'https://i.ibb.co/3W9q55d/default-profile.png';
                 const menuCaption = `❤️ **MALIYA-X V2** — අපි finalize කරපු version එක මේකයි. 🇱🇰🔥\n\n` +
+                    `🏓 \`.ping\` — Bot speed / latency check\n` +
                     `🎵 \`.song / .audio\` — YouTube audio + thumbnail\n` +
                     `🎬 \`.video / .ytdl\` — YouTube video + thumbnail (HD Quality options)\n` +
                     `🖼️ \`.sticker / .s\` — sent/quoted image sticker maker\n` +
@@ -154,17 +164,13 @@ async function startMaliyaX() {
                     `🎯 Sinhala \`.challenge\`\n` +
                     `🎞️ \`.movie\` — movie info + poster\n` +
                     `👋 DP + name welcome/goodbye\n` +
-                    `🌅 Auto Good Morning\n` +
-                    `🌙 Auto Good Night\n` +
-                    `📰 News / auto group news\n` +
                     `🤖 \`.ai\`\n` +
                     `👥 \`.groupinfo / .tagall / .admins / .link\`\n` +
                     `❤️ \`.love / .flirt / .romantic / .couple / .truth / .dare\`\n` +
                     `🔞 \`.nsfw\` — NSFW Command List\n` +
-                    `📱 Private + Groups Supported\n` +
+                    `📱 Private, Self & Groups Supported\n` +
                     `🔄 Bot connected notification active\n` +
-                    `❌ Proper download-failed messages enabled\n` +
-                    `🔁 Fun messages random + repeat protection\n\n` +
+                    `❌ Proper download-failed messages enabled\n\n` +
                     `*Type any command to execute!* ツ`;
 
                 try {
