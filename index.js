@@ -26,45 +26,34 @@ const MENU_IMAGE =
   process.env.MENU_IMAGE ||
   "https://i.ibb.co/3W9q55d/default-profile.png";
 
-/* =========================================================
-   🌐 RENDER WEB SERVER
-========================================================= */
+/* =========================
+   RENDER WEB SERVER
+========================= */
 
 app.get("/", (req, res) => {
-  res.status(200).send(`
-    <html>
-      <head>
-        <title>MALIYA-X V2</title>
-      </head>
-      <body>
-        <h1>🤖 MALIYA-X V2 🇱🇰</h1>
-        <p>Bot is running successfully.</p>
-      </body>
-    </html>
-  `);
+  res.status(200).send("MALIYA-X V2 Bot is Running Successfully! 🇱🇰🔥");
 });
 
 app.get("/health", (req, res) => {
   res.json({
-    bot: "MALIYA-X V2",
+    bot: BOT_NAME,
     status: "online"
   });
 });
 
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(`🌐 Web server running on port ${PORT}`);
+  console.log(`🌐 Server running on port ${PORT}`);
 });
 
-/* =========================================================
-   🧰 HELPERS
-========================================================= */
+/* =========================
+   HELPERS
+========================= */
 
-const sleep = (ms) =>
-  new Promise((resolve) => setTimeout(resolve, ms));
+const sleep = ms =>
+  new Promise(resolve => setTimeout(resolve, ms));
 
-function random(array) {
-  return array[Math.floor(Math.random() * array.length)];
-}
+const random = arr =>
+  arr[Math.floor(Math.random() * arr.length)];
 
 function dateLK() {
   return new Intl.DateTimeFormat("en-GB", {
@@ -80,9 +69,9 @@ function timeLK() {
   }).format(new Date());
 }
 
-/* =========================================================
-   😂 SINHALA FUN
-========================================================= */
+/* =========================
+   SINHALA FUN
+========================= */
 
 const fun = {
   joke: [
@@ -128,32 +117,27 @@ const fun = {
   ]
 };
 
-/* =========================================================
-   📨 MESSAGE TEXT
-========================================================= */
+/* =========================
+   MESSAGE TEXT
+========================= */
 
 function getBody(mek) {
   const msg = mek.message || {};
 
-  if (msg.conversation) {
+  if (msg.conversation)
     return msg.conversation;
-  }
 
-  if (msg.extendedTextMessage?.text) {
+  if (msg.extendedTextMessage?.text)
     return msg.extendedTextMessage.text;
-  }
 
-  if (msg.imageMessage?.caption) {
+  if (msg.imageMessage?.caption)
     return msg.imageMessage.caption;
-  }
 
-  if (msg.videoMessage?.caption) {
+  if (msg.videoMessage?.caption)
     return msg.videoMessage.caption;
-  }
 
-  if (msg.buttonsResponseMessage?.selectedButtonId) {
+  if (msg.buttonsResponseMessage?.selectedButtonId)
     return msg.buttonsResponseMessage.selectedButtonId;
-  }
 
   if (
     msg.listResponseMessage?.singleSelectReply?.selectedRowId
@@ -164,27 +148,23 @@ function getBody(mek) {
   return "";
 }
 
-/* =========================================================
-   🖼️ STICKER
-========================================================= */
+/* =========================
+   STICKER
+========================= */
 
 function getQuotedMessage(mek) {
-  return (
-    mek.message?.extendedTextMessage?.contextInfo
-      ?.quotedMessage || null
-  );
+  return mek.message?.extendedTextMessage?.contextInfo
+    ?.quotedMessage || null;
 }
 
 function getImageMessage(message) {
   if (!message) return null;
 
-  if (message.imageMessage) {
+  if (message.imageMessage)
     return message.imageMessage;
-  }
 
-  if (message.viewOnceMessage?.message?.imageMessage) {
+  if (message.viewOnceMessage?.message?.imageMessage)
     return message.viewOnceMessage.message.imageMessage;
-  }
 
   return null;
 }
@@ -226,16 +206,15 @@ async function getStickerImage(sock, mek) {
   return null;
 }
 
-/* =========================================================
-   🔎 YOUTUBE
-========================================================= */
+/* =========================
+   YOUTUBE
+========================= */
 
 async function searchYouTube(query) {
   const result = await ytSearch(query);
 
-  if (!result?.videos?.length) {
+  if (!result?.videos?.length)
     throw new Error("YouTube result not found");
-  }
 
   return result.videos[0];
 }
@@ -256,9 +235,8 @@ async function getAudio(url) {
     result?.download ||
     result?.url;
 
-  if (!downloadUrl) {
+  if (!downloadUrl)
     throw new Error("Audio URL unavailable");
-  }
 
   return downloadUrl;
 }
@@ -281,16 +259,15 @@ async function getVideo(url, quality) {
     result?.download ||
     result?.url;
 
-  if (!downloadUrl) {
+  if (!downloadUrl)
     throw new Error("Video URL unavailable");
-  }
 
   return downloadUrl;
 }
 
-/* =========================================================
-   ❌ DOWNLOAD ERROR
-========================================================= */
+/* =========================
+   DOWNLOAD ERROR
+========================= */
 
 async function downloadFailed(sock, from, mek, type) {
   return sock.sendMessage(
@@ -300,8 +277,7 @@ async function downloadFailed(sock, from, mek, type) {
         `╭━━〔 ❌ DOWNLOAD FAILED 〕━━╮\n` +
         `│ 📦 Type: ${type}\n` +
         `│ 😕 Media එක download කරන්න බැරි වුණා.\n` +
-        `│ 🔄 Link/query එක check කරලා\n` +
-        `│ නැවත try කරන්න.\n` +
+        `│ 🔄 Link/query එක check කරලා නැවත try කරන්න.\n` +
         `╰━━━━━━━━━━━━━━━━━━━━╯\n\n` +
         `🤖 ${BOT_NAME}`
     },
@@ -309,9 +285,9 @@ async function downloadFailed(sock, from, mek, type) {
   );
 }
 
-/* =========================================================
-   📋 MENU
-========================================================= */
+/* =========================
+   MENU
+========================= */
 
 function menuText() {
   return (
@@ -338,7 +314,7 @@ function menuText() {
     `│ .sticker\n` +
     `│ .s\n\n` +
 
-    `📱 *SOCIAL LINKS*\n` +
+    `📱 *SOCIAL*\n` +
     `│ .tiktok <public link>\n` +
     `│ .instagram <public link>\n` +
     `│ .whatsapp <public link>\n` +
@@ -381,46 +357,25 @@ function menuText() {
   );
 }
 
-async function sendMenu(sock, from, mek) {
-  try {
-    await sock.sendMessage(
-      from,
-      {
-        image: {
-          url: MENU_IMAGE
-        },
-        caption: menuText()
-      },
-      { quoted: mek }
-    );
-  } catch {
-    await sock.sendMessage(
-      from,
-      {
-        text: menuText()
-      },
-      { quoted: mek }
-    );
-  }
-}
-
-/* =========================================================
-   👑 ADMIN CHECK
-========================================================= */
+/* =========================
+   ADMIN
+========================= */
 
 async function isAdmin(sock, group, sender) {
-  const metadata = await sock.groupMetadata(group);
+  const metadata =
+    await sock.groupMetadata(group);
 
-  const member = metadata.participants.find(
-    (p) => p.id === sender
-  );
+  const member =
+    metadata.participants.find(
+      p => p.id === sender
+    );
 
   return Boolean(member?.admin);
 }
 
-/* =========================================================
-   🚀 BOT
-========================================================= */
+/* =========================
+   START BOT
+========================= */
 
 async function startMaliyaX() {
   fs.mkdirSync(SESSION_DIR, {
@@ -446,80 +401,83 @@ async function startMaliyaX() {
     printQRInTerminal: false
   });
 
-  /* =======================================================
-     🔑 PAIRING CODE
-  ======================================================= */
+  /* =======================
+     PAIRING CODE
+  ======================= */
 
-  if (
-    !state.creds.registered &&
-    PHONE_NUMBER
-  ) {
-    setTimeout(async () => {
-      try {
-        console.log(
-          "🔑 Requesting WhatsApp pairing code..."
-        );
+  if (!state.creds.registered) {
 
-        const code =
-          await sock.requestPairingCode(
-            PHONE_NUMBER
+    if (!PHONE_NUMBER) {
+      console.error(
+        "❌ PHONE_NUMBER is missing from Render Environment Variables."
+      );
+    } else {
+      setTimeout(async () => {
+        try {
+          console.log(
+            "🔑 Requesting WhatsApp pairing code..."
           );
 
-        console.log(
-          "\n===================================="
-        );
+          const code =
+            await sock.requestPairingCode(
+              PHONE_NUMBER
+            );
 
-        console.log(
-          "🔑 MALIYA-X V2 PAIRING CODE"
-        );
+          console.log(
+            "\n===================================="
+          );
 
-        console.log(
-          code
-        );
+          console.log(
+            "🔑 MALIYA-X V2 PAIRING CODE"
+          );
 
-        console.log(
-          "====================================\n"
-        );
+          console.log(code);
 
-      } catch (error) {
-        console.error(
-          "❌ Pairing code error:",
-          error.message
-        );
-      }
-    }, 5000);
+          console.log(
+            "====================================\n"
+          );
+
+          console.log(
+            "📱 WhatsApp → Linked Devices → Link with phone number instead"
+          );
+
+        } catch (error) {
+          console.error(
+            "❌ Pairing code error:",
+            error?.message || error
+          );
+        }
+      }, 5000);
+    }
   }
-
-  /* =======================================================
-     🔐 SAVE AUTH
-  ======================================================= */
 
   sock.ev.on(
     "creds.update",
     saveCreds
   );
 
-  /* =======================================================
-     🟢 CONNECTION
-  ======================================================= */
+  /* =======================
+     CONNECTION
+  ======================= */
 
-  let connectionNoticeSent = false;
+  let notified = false;
 
   sock.ev.on(
     "connection.update",
-    async (update) => {
+    async update => {
       const {
         connection,
         lastDisconnect
       } = update;
 
       if (connection === "open") {
+
         console.log(
-          `\n✅ ${BOT_NAME} CONNECTED SUCCESSFULLY!\n`
+          `\n✅ ${BOT_NAME} CONNECTED!\n`
         );
 
-        if (!connectionNoticeSent) {
-          connectionNoticeSent = true;
+        if (!notified) {
+          notified = true;
 
           try {
             const botNumber =
@@ -537,16 +495,14 @@ async function startMaliyaX() {
                   `│ 📅 ${dateLK()}\n` +
                   `│ ⏰ ${timeLK()}\n` +
                   `╰━━━━━━━━━━━━━━━━━━╯\n\n` +
-
                   `✅ WhatsApp successfully connected!\n` +
                   `🔥 MALIYA-X V2 is ready.\n\n` +
-
                   `Type *.menu* to view commands.`
               }
             );
           } catch (error) {
             console.error(
-              "Connection notification error:",
+              "Connection message error:",
               error.message
             );
           }
@@ -554,9 +510,9 @@ async function startMaliyaX() {
       }
 
       if (connection === "close") {
+
         const statusCode =
-          lastDisconnect?.error?.output
-            ?.statusCode;
+          lastDisconnect?.error?.output?.statusCode;
 
         const shouldReconnect =
           statusCode !==
@@ -576,22 +532,25 @@ async function startMaliyaX() {
           startMaliyaX();
         } else {
           console.log(
-            "🚪 WhatsApp logged out. Delete session and pair again."
+            "🚪 WhatsApp logged out."
           );
         }
       }
     }
   );
 
-  /* =======================================================
-     👋 WELCOME / GOODBYE
-  ======================================================= */
+  /* =======================
+     WELCOME / GOODBYE
+  ======================= */
 
   sock.ev.on(
     "group-participants.update",
-    async (update) => {
+    async update => {
+
       try {
-        const groupId = update.id;
+
+        const groupId =
+          update.id;
 
         const metadata =
           await sock.groupMetadata(
@@ -602,6 +561,7 @@ async function startMaliyaX() {
           const participant
           of update.participants
         ) {
+
           let name =
             participant.split("@")[0];
 
@@ -615,23 +575,10 @@ async function startMaliyaX() {
               );
           } catch {}
 
-          try {
-            const contact =
-              await sock.onWhatsApp(
-                participant
-              );
-
-            if (
-              contact?.[0]?.notify
-            ) {
-              name =
-                contact[0].notify;
-            }
-          } catch {}
-
           if (
             update.action === "add"
           ) {
+
             const text =
               `╭━━〔 👋 WELCOME 〕━━╮\n` +
               `│ 👤 ${name}\n` +
@@ -675,6 +622,7 @@ async function startMaliyaX() {
           if (
             update.action === "remove"
           ) {
+
             const text =
               `╭━━〔 👋 GOODBYE 〕━━╮\n` +
               `│ 👤 ${name}\n` +
@@ -712,6 +660,7 @@ async function startMaliyaX() {
             }
           }
         }
+
       } catch (error) {
         console.error(
           "Welcome/Goodbye error:",
@@ -721,15 +670,14 @@ async function startMaliyaX() {
     }
   );
 
-  /* =======================================================
-     📨 COMMAND HANDLER
-  ======================================================= */
+  /* =======================
+     COMMAND HANDLER
+  ======================= */
 
   sock.ev.on(
     "messages.upsert",
-    async ({
-      messages
-    }) => {
+    async ({ messages }) => {
+
       const mek =
         messages?.[0];
 
@@ -744,6 +692,7 @@ async function startMaliyaX() {
       ) return;
 
       try {
+
         const from =
           mek.key.remoteJid;
 
@@ -779,24 +728,37 @@ async function startMaliyaX() {
         /* MENU */
 
         if (
-          [
-            "menu",
-            "help",
-            "maliya"
-          ].includes(command)
+          ["menu", "help", "maliya"]
+            .includes(command)
         ) {
-          return sendMenu(
-            sock,
-            from,
-            mek
-          );
+          try {
+            await sock.sendMessage(
+              from,
+              {
+                image: {
+                  url: MENU_IMAGE
+                },
+                caption: menuText()
+              },
+              { quoted: mek }
+            );
+          } catch {
+            await sock.sendMessage(
+              from,
+              {
+                text: menuText()
+              },
+              { quoted: mek }
+            );
+          }
+
+          return;
         }
 
         /* PING */
 
-        if (
-          command === "ping"
-        ) {
+        if (command === "ping") {
+
           const start =
             Date.now();
 
@@ -809,8 +771,7 @@ async function startMaliyaX() {
           );
 
           const speed =
-            Date.now() -
-            start;
+            Date.now() - start;
 
           return sock.sendMessage(
             from,
@@ -826,9 +787,7 @@ async function startMaliyaX() {
 
         /* TIME */
 
-        if (
-          command === "time"
-        ) {
+        if (command === "time") {
           return sock.sendMessage(
             from,
             {
@@ -863,17 +822,15 @@ async function startMaliyaX() {
         /* SONG */
 
         if (
-          ["song", "audio"].includes(
-            command
-          )
+          ["song", "audio"].includes(command)
         ) {
+
           if (!query) {
             return sock.sendMessage(
               from,
               {
                 text:
-                  `❌ Usage:\n.song <song name/link>\n\n` +
-                  `Example:\n.song Manike Mage Hithe`
+                  "❌ Example: .song Manike Mage Hithe"
               },
               { quoted: mek }
             );
@@ -883,26 +840,24 @@ async function startMaliyaX() {
             from,
             {
               text:
-                `🔎 Searching YouTube...\n\n🎵 ${query}`
+                `🔎 YouTube search...\n🎵 ${query}`
             },
             { quoted: mek }
           );
 
           try {
+
             const video =
-              await searchYouTube(
-                query
-              );
+              await searchYouTube(query);
 
             await sock.sendMessage(
               from,
               {
                 image: {
-                  url:
-                    video.thumbnail
+                  url: video.thumbnail
                 },
                 caption:
-                  `╭━━〔 🎵 AUDIO 〕━━╮\n` +
+                  `╭━━〔 🎵 SONG 〕━━╮\n` +
                   `│ 🎶 ${video.title}\n` +
                   `│ ⏱️ ${video.timestamp || "Unknown"}\n` +
                   `╰━━━━━━━━━━━━━━╯\n\n` +
@@ -912,9 +867,7 @@ async function startMaliyaX() {
             );
 
             const audioUrl =
-              await getAudio(
-                video.url
-              );
+              await getAudio(video.url);
 
             return sock.sendMessage(
               from,
@@ -922,16 +875,17 @@ async function startMaliyaX() {
                 audio: {
                   url: audioUrl
                 },
-                mimetype:
-                  "audio/mpeg",
+                mimetype: "audio/mpeg",
                 fileName:
                   "MALIYA-X-Audio.mp3"
               },
               { quoted: mek }
             );
+
           } catch (error) {
+
             console.error(
-              "Audio:",
+              "Song error:",
               error.message
             );
 
@@ -947,19 +901,15 @@ async function startMaliyaX() {
         /* VIDEO */
 
         if (
-          ["video", "ytdl"].includes(
-            command
-          )
+          ["video", "ytdl"].includes(command)
         ) {
+
           if (!query) {
             return sock.sendMessage(
               from,
               {
                 text:
-                  `❌ Usage:\n` +
-                  `.video <name/link> [quality]\n\n` +
-                  `Quality: 144p / 240p / 360p / 480p / 720p / 1080p\n\n` +
-                  `Example:\n.video Song Name 720p`
+                  "❌ Example: .video Song Name 720p"
               },
               { quoted: mek }
             );
@@ -987,7 +937,7 @@ async function startMaliyaX() {
             from,
             {
               text:
-                `🔎 Searching YouTube...\n\n` +
+                `🔎 YouTube search...\n` +
                 `🎬 ${cleanQuery}\n` +
                 `📺 Quality: ${quality}`
             },
@@ -995,6 +945,7 @@ async function startMaliyaX() {
           );
 
           try {
+
             const video =
               await searchYouTube(
                 cleanQuery
@@ -1004,13 +955,11 @@ async function startMaliyaX() {
               from,
               {
                 image: {
-                  url:
-                    video.thumbnail
+                  url: video.thumbnail
                 },
                 caption:
                   `╭━━〔 🎬 VIDEO 〕━━╮\n` +
                   `│ 🎞️ ${video.title}\n` +
-                  `│ ⏱️ ${video.timestamp || "Unknown"}\n` +
                   `│ 📺 ${quality}\n` +
                   `╰━━━━━━━━━━━━━━╯\n\n` +
                   `⬇️ Downloading...`
@@ -1041,9 +990,11 @@ async function startMaliyaX() {
               },
               { quoted: mek }
             );
+
           } catch (error) {
+
             console.error(
-              "Video:",
+              "Video error:",
               error.message
             );
 
@@ -1059,11 +1010,11 @@ async function startMaliyaX() {
         /* STICKER */
 
         if (
-          ["sticker", "s"].includes(
-            command
-          )
+          ["sticker", "s"].includes(command)
         ) {
+
           try {
+
             const image =
               await getStickerImage(
                 sock,
@@ -1075,8 +1026,7 @@ async function startMaliyaX() {
                 from,
                 {
                   text:
-                    `❌ Image එකක් send කරලා caption එකට .s දාන්න.\n\n` +
-                    `නැත්නම් image එකකට reply කරලා .s දාන්න.`
+                    "❌ Image එකකට reply කරලා .s දාන්න, නැත්නම් image caption එකට .s දාන්න."
                 },
                 { quoted: mek }
               );
@@ -1089,9 +1039,11 @@ async function startMaliyaX() {
               },
               { quoted: mek }
             );
+
           } catch (error) {
+
             console.error(
-              "Sticker:",
+              "Sticker error:",
               error.message
             );
 
@@ -1108,7 +1060,7 @@ async function startMaliyaX() {
           return;
         }
 
-        /* SOCIAL */
+        /* SOCIAL LINKS */
 
         if (
           [
@@ -1119,14 +1071,13 @@ async function startMaliyaX() {
             "imo"
           ].includes(command)
         ) {
+
           if (!query) {
             return sock.sendMessage(
               from,
               {
                 text:
-                  `📥 *${command.toUpperCase()}*\n\n` +
-                  `Public media link එක දෙන්න.\n\n` +
-                  `Example:\n.${command} https://...`
+                  `📥 .${command} <public link>`
               },
               { quoted: mek }
             );
@@ -1137,7 +1088,7 @@ async function startMaliyaX() {
             {
               text:
                 `🔗 ${command.toUpperCase()} link received.\n\n` +
-                `⏳ Public link processing is available when the configured downloader service supports this source.\n\n` +
+                `⏳ Downloader service එක source එක support කරන විට media process කරන්න පුළුවන්.\n\n` +
                 `⚠️ Private/restricted media support නොකරයි.`
             },
             { quoted: mek }
@@ -1146,21 +1097,21 @@ async function startMaliyaX() {
 
         /* MOVIE */
 
-        if (
-          command === "movie"
-        ) {
+        if (command === "movie") {
+
           if (!query) {
             return sock.sendMessage(
               from,
               {
                 text:
-                  "🎬 Usage: .movie <movie name>"
+                  "🎬 Example: .movie Avatar"
               },
               { quoted: mek }
             );
           }
 
           try {
+
             const result =
               await ytSearch(
                 `${query} official trailer`
@@ -1169,29 +1120,25 @@ async function startMaliyaX() {
             const movie =
               result.videos?.[0];
 
-            if (!movie) {
-              throw new Error(
-                "Movie not found"
-              );
-            }
+            if (!movie)
+              throw new Error("Not found");
 
             return sock.sendMessage(
               from,
               {
                 image: {
-                  url:
-                    movie.thumbnail
+                  url: movie.thumbnail
                 },
                 caption:
                   `╭━━〔 🎬 MOVIE 〕━━╮\n` +
                   `│ 🎞️ ${query}\n` +
                   `│ 🔎 ${movie.title}\n` +
-                  `│ ⏱️ ${movie.timestamp || "Unknown"}\n` +
                   `╰━━━━━━━━━━━━━━╯\n\n` +
                   `🔗 ${movie.url}`
               },
               { quoted: mek }
             );
+
           } catch {
             return sock.sendMessage(
               from,
@@ -1206,21 +1153,21 @@ async function startMaliyaX() {
 
         /* AI */
 
-        if (
-          command === "ai"
-        ) {
+        if (command === "ai") {
+
           if (!query) {
             return sock.sendMessage(
               from,
               {
                 text:
-                  "🤖 Usage: .ai <question>"
+                  "🤖 Example: .ai Sri Lanka ගැන කියන්න"
               },
               { quoted: mek }
             );
           }
 
           try {
+
             const api =
               "https://apis.davidcyriltech.my.id/ai/gemini?query=" +
               encodeURIComponent(query);
@@ -1238,11 +1185,8 @@ async function startMaliyaX() {
               response.data?.response ||
               response.data?.answer;
 
-            if (!answer) {
-              throw new Error(
-                "No response"
-              );
-            }
+            if (!answer)
+              throw new Error("No response");
 
             return sock.sendMessage(
               from,
@@ -1252,6 +1196,7 @@ async function startMaliyaX() {
               },
               { quoted: mek }
             );
+
           } catch {
             return sock.sendMessage(
               from,
@@ -1274,6 +1219,7 @@ async function startMaliyaX() {
             "link"
           ].includes(command)
         ) {
+
           if (!isGroup) {
             return sock.sendMessage(
               from,
@@ -1285,9 +1231,8 @@ async function startMaliyaX() {
             );
           }
 
-          if (
-            command === "groupinfo"
-          ) {
+          if (command === "groupinfo") {
+
             const metadata =
               await sock.groupMetadata(
                 from
@@ -1295,7 +1240,7 @@ async function startMaliyaX() {
 
             const admins =
               metadata.participants.filter(
-                (p) => p.admin
+                p => p.admin
               ).length;
 
             return sock.sendMessage(
@@ -1330,9 +1275,8 @@ async function startMaliyaX() {
             );
           }
 
-          if (
-            command === "tagall"
-          ) {
+          if (command === "tagall") {
+
             const metadata =
               await sock.groupMetadata(
                 from
@@ -1340,14 +1284,14 @@ async function startMaliyaX() {
 
             const mentions =
               metadata.participants.map(
-                (p) => p.id
+                p => p.id
               );
 
             const text =
               `📢 *TAG ALL*\n\n` +
               mentions
                 .map(
-                  (id) =>
+                  id =>
                     `• @${id.split("@")[0]}`
                 )
                 .join("\n");
@@ -1362,9 +1306,8 @@ async function startMaliyaX() {
             );
           }
 
-          if (
-            command === "admins"
-          ) {
+          if (command === "admins") {
+
             const metadata =
               await sock.groupMetadata(
                 from
@@ -1372,19 +1315,19 @@ async function startMaliyaX() {
 
             const admins =
               metadata.participants.filter(
-                (p) => p.admin
+                p => p.admin
               );
 
             const mentions =
               admins.map(
-                (p) => p.id
+                p => p.id
               );
 
             const text =
               `🛡️ *GROUP ADMINS*\n\n` +
               admins
                 .map(
-                  (p) =>
+                  p =>
                     `• @${p.id.split("@")[0]}`
                 )
                 .join("\n");
@@ -1399,9 +1342,8 @@ async function startMaliyaX() {
             );
           }
 
-          if (
-            command === "link"
-          ) {
+          if (command === "link") {
+
             const code =
               await sock.groupInviteCode(
                 from
@@ -1419,39 +1361,33 @@ async function startMaliyaX() {
           }
         }
 
-        /* GOOD MORNING */
+        /* GM */
 
         if (
-          [
-            "gm",
-            "goodmorning"
-          ].includes(command)
+          ["gm", "goodmorning"]
+            .includes(command)
         ) {
           return sock.sendMessage(
             from,
             {
               text:
-                `🌅 *සුභ උදෑසනක්!* ☀️\n\n` +
-                `අද දවස සතුටින් පටන් ගන්න. ❤️`
+                "🌅 *සුභ උදෑසනක්!* ☀️\n\nඅද දවස සතුටින් පටන් ගන්න. ❤️"
             },
             { quoted: mek }
           );
         }
 
-        /* GOOD NIGHT */
+        /* GN */
 
         if (
-          [
-            "gn",
-            "goodnight"
-          ].includes(command)
+          ["gn", "goodnight"]
+            .includes(command)
         ) {
           return sock.sendMessage(
             from,
             {
               text:
-                `🌙 *සුභ රාත්‍රියක්!* 😴\n\n` +
-                `හොඳින් විවේක ගන්න. හෙට අලුත් දවසක්! ❤️`
+                "🌙 *සුභ රාත්‍රියක්!* 😴\n\nහොඳින් විවේක ගන්න. හෙට අලුත් දවසක්! ❤️"
             },
             { quoted: mek }
           );
@@ -1476,9 +1412,7 @@ async function startMaliyaX() {
             "🔥 Dare: කෙනෙක්ට හොඳ message එකක් යවලා surprise කරන්න."
         };
 
-        if (
-          replies[command]
-        ) {
+        if (replies[command]) {
           return sock.sendMessage(
             from,
             {
@@ -1491,7 +1425,7 @@ async function startMaliyaX() {
 
       } catch (error) {
         console.error(
-          "Message handler error:",
+          "❌ Message handler:",
           error.message
         );
       }
@@ -1499,15 +1433,13 @@ async function startMaliyaX() {
   );
 }
 
-/* =========================================================
-   🚀 START
-========================================================= */
+/* =========================
+   START
+========================= */
 
-startMaliyaX().catch(
-  (error) => {
-    console.error(
-      "Fatal startup error:",
-      error
-    );
-  }
-);
+startMaliyaX().catch(error => {
+  console.error(
+    "❌ Fatal startup error:",
+    error
+  );
+});
