@@ -1,11 +1,10 @@
 {
-  "name": "maliya-x-video-test",
+  "name": "maliya-x-video-local",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": { "start": "node index.js" },
   "dependencies": {
     "@whiskeysockets/baileys": "latest",
-    "axios": "latest",
     "express": "latest",
     "pino": "latest"
   }
